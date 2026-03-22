@@ -37,8 +37,8 @@ def group(request, pk):
     else:
       group.delete()
       return redirect('home')
-    
-  cost_per_member = group.total / len(group.members)
+  
+  cost_per_member = (group.total / len(group.members)) if len(group.members) > 0 else 0
 
   context = {'group': group, 'cost_per_member': cost_per_member}
   return render(request=request, template_name='./prototype/group.html', context=context)
