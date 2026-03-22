@@ -1,0 +1,19 @@
+{% extends "main.html" %}
+
+{% block content %}
+<div>
+  <a href="create-group/">Create Group</a>
+</div>
+
+<h2>Groups List</h2>
+<div>
+  <div>
+    {% for group in groups %}
+    <div>
+      <h5>{{group.id}} -- <a href="/group/{{group.id}}">{{group.name}}</a></h5>
+      <hr>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock content %}

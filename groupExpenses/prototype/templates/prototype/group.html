@@ -1,0 +1,33 @@
+{% extends "main.html" %}
+
+{% block content %}
+<a href="/update-group/{{group.id}}/">Edit</a>
+<form method="POST", action="">
+  {% csrf_token %}
+  <input type="submit" value="Delete">
+</form>
+
+<form method="POST" action="">
+  {% csrf_token %}
+  <p>Add member: <input type="text" name="new_member">
+  <input type="submit" value="Add"></p>
+</form>
+
+<h3>Currency: {{group.currency}}</h3>
+<h1>{{group.name}}</h1>
+<h3>Group Members:</h3>
+{% for member in group.members %}
+<div>
+  <p>{{member}}</p>
+  <form method="POST" action="">
+    {% csrf_token %}
+    <input type="number" step="0.01" name="expense">
+    <input type="submit" value="Add Expense">
+  </form>
+</div>
+<hr>
+{% endfor %}
+
+<h4>Total: {{group.total}}</h4>
+<h4>Each member should pay: {{cost_per_member}}</h4>
+{% endblock content %}
