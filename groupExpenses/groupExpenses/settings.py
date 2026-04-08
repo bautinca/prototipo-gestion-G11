@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-@tax_bi3-t7(y_8xzwy#90g2-o)!lw9=0c7%i=xv#&py91^&id
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
