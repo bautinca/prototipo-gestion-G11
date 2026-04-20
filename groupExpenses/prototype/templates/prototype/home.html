@@ -1,19 +1,33 @@
 {% extends "main.html" %}
 
 {% block content %}
-<div>
-  <a href="create-group/">Create Group</a>
-</div>
+<style>
+  body { background: #f5f6fa; }
+  .page { max-width: 680px; margin: 40px auto; background: white; border-radius: 10px; padding: 28px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+  .group-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; }
+  .group-row a { font-size: 16px; font-weight: 500; color: #333; text-decoration: none; }
+  .group-row a:hover { color: #3498db; }
+  .btn-danger { background: #e74c3c; color: white; border: none; padding: 4px 10px; border-radius: 5px; cursor: pointer; font-size: 12px; }
+  .btn-create { display: inline-block; margin-bottom: 20px; background: #3498db; color: white; padding: 8px 16px; border-radius: 5px; text-decoration: none; font-size: 14px; }
+  hr { border: none; border-top: 1px solid #eee; margin: 0; }
+</style>
 
-<h2>Groups List</h2>
-<div>
-  <div>
-    {% for group in groups %}
-    <div>
-      <h5>{{group.id}} -- <a href="/group/{{group.id}}">{{group.name}}</a></h5>
-      <hr>
-    </div>
-    {% endfor %}
+<div class="page">
+  <a href="{% url 'create-group' %}" class="btn-create">+ Crear grupo</a>
+  <h2>Lista de grupos</h2>
+  {% for group in groups %}
+  <div class="group-row">
+    <a href="{% url 'group' group.id %}">{{ group.name }}</a>
+    <form method="POST" action="{% url 'group' group.id %}"
+          onsubmit="return confirm('¿Seguro que querés eliminar {{ group.name }}?')">
+      {% csrf_token %}
+      <input type="hidden" name="delete_group" value="1"/>
+      <button type="submit" class="btn-danger">Eliminar</button>
+    </form>
   </div>
+  <hr>
+  {% empty %}
+  <p style="color:#aaa;">No tenés grupos. ¡Creá uno!</p>
+  {% endfor %}
 </div>
 {% endblock content %}

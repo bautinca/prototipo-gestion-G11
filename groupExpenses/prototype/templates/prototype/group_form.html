@@ -1,13 +1,93 @@
 {% extends 'main.html' %}
 
 {% block content %}
+<style>
+  body { background: #f5f6fa; }
+  .page { max-width: 500px; margin: 40px auto; background: white; border-radius: 10px; padding: 28px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+  .field { margin-bottom: 16px; }
+  label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 4px; }
+  input[type=text], input[type=number], select { width: 100%; border: 1px solid #ddd; border-radius: 5px; padding: 8px; font-size: 14px; box-sizing: border-box; }
+  .error-msg { color: #e74c3c; font-size: 12px; margin-top: 4px; }
+  .btn { padding: 8px 20px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; }
+  #exchange-rate-field { display: none; margin-bottom: 16px; }
+</style>
 
-<div>
+<div class="page">
+  <h2>{% if group %}Editar grupo{% else %}Crear grupo{% endif %}</h2>
   <form method="POST">
     {% csrf_token %}
-    {{form.as_p}}
-    <input type="submit" value="Submit">
+    {% for field in form %}
+    <div class="field">
+      {{ field.label_tag }}
+      {{ field }}
+      {% if field.errors %}
+        <div class="error-msg">{{ field.errors|join:", " }}</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+
+    {% if group %}
+    <input type="hidden" name="exchange_direction" id="exchange-direction" value="multiply"/>
+    <div id="exchange-rate-field" class="field" style="display:none;">
+      <label id="exchange-rate-label" for="exchange_rate"></label>
+      <input type="number" name="exchange_rate" id="exchange_rate" step="0.01" min="0" placeholder="Ej: 1000"/>
+      <div id="exchange-preview" style="font-size:12px;color:#3498db;margin-top:4px;"></div>
+    </div>
+    {% endif %}
+
+    <button type="submit" class="btn">Guardar</button>
   </form>
 </div>
 
+{% if group %}
+<script>
+const STRENGTH = { 'ARS': 1, 'EUR': 2, 'USD': 3 };
+const currencySelect = document.querySelector('[name=currency]');
+const originalCurrency = '{{ group.currency }}';
+const rateField = document.getElementById('exchange-rate-field');
+const rateLabel = document.getElementById('exchange-rate-label');
+const rateInput = document.getElementById('exchange_rate');
+const directionInput = document.getElementById('exchange-direction');
+const preview = document.getElementById('exchange-preview');
+const totalAmount = {{ group.total }};
+
+function updateUI() {
+  const newCurrency = currencySelect.value;
+  if (newCurrency === originalCurrency) {
+    rateField.style.display = 'none';
+    return;
+  }
+
+  rateField.style.display = 'block';
+
+  const origStrong = (STRENGTH[originalCurrency] || 1) >= (STRENGTH[newCurrency] || 1);
+
+  if (origStrong) {
+    // moneda original más fuerte: "1 original = X nueva" → multiplicar (ej: 100 USD * 1000 = 100.000 ARS)
+    rateLabel.textContent = `1 ${originalCurrency} = ¿cuántos ${newCurrency}? (para reconvertir el historial)`;
+    directionInput.value = 'multiply';
+  } else {
+    // moneda nueva más fuerte: "1 nueva = X original" → dividir (ej: 1000 ARS / 1000 = 1 USD)
+    rateLabel.textContent = `1 ${newCurrency} = ¿cuántos ${originalCurrency}? (para reconvertir el historial)`;
+    directionInput.value = 'divide';
+  }
+
+  updatePreview();
+}
+
+function updatePreview() {
+  const rate = parseFloat(rateInput.value);
+  if (rate > 0 && totalAmount > 0) {
+    const newCurrency = currencySelect.value;
+    const converted = directionInput.value === 'divide' ? totalAmount / rate : totalAmount * rate;
+    preview.textContent = `Total actual: ${totalAmount} ${originalCurrency} → ${converted.toFixed(2)} ${newCurrency}`;
+  } else {
+    preview.textContent = '';
+  }
+}
+
+currencySelect.addEventListener('change', updateUI);
+rateInput.addEventListener('input', updatePreview);
+</script>
+{% endif %}
 {% endblock content %}

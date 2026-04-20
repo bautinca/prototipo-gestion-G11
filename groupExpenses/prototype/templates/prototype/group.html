@@ -1,33 +1,213 @@
 {% extends "main.html" %}
 
 {% block content %}
-<a href="/update-group/{{group.id}}/">Edit</a>
-<form method="POST", action="">
-  {% csrf_token %}
-  <input type="submit" value="Delete">
-</form>
+<style>
+  body { background: #f5f6fa; }
+  .page { max-width: 680px; margin: 0 auto; background: white; border-radius: 10px; padding: 28px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+  .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .btn { padding: 6px 14px; border-radius: 5px; border: none; cursor: pointer; font-size: 13px; }
+  .btn-danger { background: #e74c3c; color: white; }
+  .btn-primary { background: #3498db; color: white; }
+  .btn-sm { padding: 4px 10px; font-size: 12px; }
+  input[type=text], input[type=number], select { border: 1px solid #ddd; border-radius: 5px; padding: 5px 8px; font-size: 13px; }
+  .badge { padding: 3px 10px; border-radius: 12px; font-size: 12px; color: white; font-weight: 500; margin-left: 8px; }
+  .badge-green { background: #27ae60; }
+  .badge-red { background: #e74c3c; }
+  .badge-gray { background: #95a5a6; }
+  .member-row { margin-bottom: 14px; }
+  .member-header { display: flex; align-items: center; margin-bottom: 6px; }
+  .member-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .summary { background: #f8f9fa; border-radius: 8px; padding: 14px; margin-top: 16px; }
+  .summary p { margin: 4px 0; font-size: 14px; }
+  hr { border: none; border-top: 1px solid #eee; margin: 14px 0; }
+  h1 { cursor: pointer; border-bottom: 2px dashed #ccc; display: inline-block; padding-bottom: 2px; }
+  h1:hover { border-color: #3498db; color: #3498db; }
+  #name-input { font-size: 24px; font-weight: bold; border: 2px solid #3498db; border-radius: 5px; padding: 4px 8px; display: none; }
+</style>
 
-<form method="POST" action="">
-  {% csrf_token %}
-  <p>Add member: <input type="text" name="new_member">
-  <input type="submit" value="Add"></p>
-</form>
+<div class="page">
+  <div class="top-bar">
+    <a href="{% url 'update-group' group.id %}">Editar grupo</a>
+    <form method="POST" onsubmit="return confirm('¿Seguro que querés eliminar este grupo?')">
+      {% csrf_token %}
+      <input type="hidden" name="delete_group" value="1">
+      <button type="submit" class="btn btn-danger btn-sm">Eliminar grupo</button>
+    </form>
+  </div>
 
-<h3>Currency: {{group.currency}}</h3>
-<h1>{{group.name}}</h1>
-<h3>Group Members:</h3>
-{% for member in group.members %}
-<div>
-  <p>{{member}}</p>
-  <form method="POST" action="">
+  <div style="font-size:12px;color:#aaa;margin-bottom:4px;">Click en el nombre para editar</div>
+  <h1 id="group-name">{{ group.name }}</h1>
+  <form id="name-form" method="POST" action="{% url 'update-name' group.id %}" style="display:none;">
     {% csrf_token %}
-    <input type="number" step="0.01" name="expense">
-    <input type="submit" value="Add Expense">
+    <input type="text" id="name-input" name="name" value="{{ group.name }}"/>
   </form>
-</div>
-<hr>
-{% endfor %}
+  <p style="color:#666;font-size:14px;margin-top:8px;">Moneda: <strong>{{ group.currency }}</strong></p>
 
-<h4>Total: {{group.total}}</h4>
-<h4>Each member should pay: {{cost_per_member}}</h4>
+  <hr>
+
+  <form method="POST">
+    {% csrf_token %}
+    <input type="text" name="new_member" placeholder="Nombre del miembro"/>
+    <button type="submit" class="btn btn-primary btn-sm">Agregar miembro</button>
+  </form>
+
+  <hr>
+
+  <h3>Miembros del grupo:</h3>
+
+  {% for member_data in members_data %}
+  <div class="member-row">
+    <div class="member-header">
+      <strong>{{ member_data.name }}</strong>
+      {% if member_data.status.type == 'cobrar' %}
+        <span class="badge badge-green">A cobrar ${{ member_data.status.amount }}</span>
+      {% elif member_data.status.type == 'debe' %}
+        {% for debt in member_data.status.debts %}
+        <span class="badge badge-red">Debe ${{ debt.amount }} a {{ debt.to }}</span>
+        {% endfor %}
+      {% else %}
+        <span class="badge badge-gray">Al día</span>
+      {% endif %}
+    </div>
+    <div class="member-actions">
+      <form method="POST" class="member-expense-form" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+        {% csrf_token %}
+        <input type="hidden" name="paid_by" value="{{ member_data.name }}"/>
+        <input type="number" name="expense" step="0.01" placeholder="Monto" style="width:90px;"/>
+        <select name="expense_currency" class="expense-currency">
+          {% for code, label in currency_choices %}
+          <option value="{{ code }}" {% if code == group.currency %}selected{% endif %}>{{ code }}</option>
+          {% endfor %}
+        </select>
+        <input type="hidden" name="exchange_direction" class="exchange-direction-field" value="multiply"/>
+        <div class="exchange-rate-wrapper" style="display:none;flex-direction:column;gap:2px;">
+          <label class="exchange-rate-label" style="font-size:11px;color:#666;"></label>
+          <input type="number" name="exchange_rate" step="0.01" placeholder="Ej: 1000" class="exchange-rate-field" style="width:110px;"/>
+          <span class="exchange-preview" style="font-size:11px;color:#3498db;"></span>
+        </div>
+        {% if group.members %}
+        <button type="submit" class="btn btn-primary btn-sm">Agregar gasto</button>
+        {% else %}
+        <button type="button" class="btn btn-primary btn-sm" disabled title="Agregá un miembro primero">Agregar gasto</button>
+        {% endif %}
+      </form>
+      <form method="POST" action="{% url 'delete-member' group.id %}">
+        {% csrf_token %}
+        <input type="hidden" name="member_name" value="{{ member_data.name }}"/>
+        <button type="submit" class="btn btn-danger btn-sm"
+                onclick="return confirm('¿Eliminar a {{ member_data.name }}?')">Eliminar</button>
+      </form>
+    </div>
+  </div>
+  <hr>
+  {% empty %}
+  <p style="color:#aaa;">No hay miembros. Agregá uno arriba.</p>
+  <hr>
+  {% endfor %}
+
+  <div class="summary">
+    <p><strong>Total del grupo:</strong> {{ group.total }} {{ group.currency }}</p>
+    <p><strong>Cada miembro debería poner:</strong> {{ cost_per_member }} {{ group.currency }}</p>
+  </div>
+
+  {% if expenses %}
+  <h3 style="margin-top:20px;">Historial de gastos:</h3>
+  <ul style="padding-left:18px;">
+    {% for expense in expenses %}
+    <li style="margin:4px 0;font-size:14px;">
+      {{ expense.paid_by }} pagó {{ expense.original_amount }} {{ expense.original_currency }}
+      {% if expense.original_currency != group.currency %}
+        (= {{ expense.amount }} {{ group.currency }})
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</div>
+
+<script>
+const nameEl = document.getElementById('group-name');
+const nameForm = document.getElementById('name-form');
+const nameInput = document.getElementById('name-input');
+
+nameEl.addEventListener('click', () => {
+  nameEl.style.display = 'none';
+  nameForm.style.display = 'block';
+  nameInput.style.display = 'inline-block';
+  nameInput.focus();
+  nameInput.select();
+});
+
+nameInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); nameForm.submit(); }
+  if (e.key === 'Escape') {
+    nameEl.style.display = 'inline-block';
+    nameForm.style.display = 'none';
+    nameInput.style.display = 'none';
+  }
+});
+
+nameInput.addEventListener('blur', () => {
+  nameEl.style.display = 'inline-block';
+  nameForm.style.display = 'none';
+  nameInput.style.display = 'none';
+});
+
+const groupCurrency = '{{ group.currency }}';
+// ARS < EUR < USD (mayor número = moneda más fuerte)
+const STRENGTH = { 'ARS': 1, 'EUR': 2, 'USD': 3 };
+
+function updateRateUI(form, expenseCurrency) {
+  const wrapper = form.querySelector('.exchange-rate-wrapper');
+  const label = form.querySelector('.exchange-rate-label');
+  const directionInput = form.querySelector('.exchange-direction-field');
+  const rateInput = form.querySelector('.exchange-rate-field');
+  const preview = form.querySelector('.exchange-preview');
+  const amountInput = form.querySelector('[name=expense]');
+
+  if (expenseCurrency === groupCurrency) {
+    wrapper.style.display = 'none';
+    return;
+  }
+
+  wrapper.style.display = 'flex';
+
+  const groupStrong = (STRENGTH[groupCurrency] || 1) >= (STRENGTH[expenseCurrency] || 1);
+
+  if (groupStrong) {
+    // group más fuerte: "1 groupCurrency = X expenseCurrency" → dividir
+    label.textContent = `1 ${groupCurrency} = ¿cuántos ${expenseCurrency}?`;
+    directionInput.value = 'divide';
+  } else {
+    // expense más fuerte: "1 expenseCurrency = X groupCurrency" → multiplicar
+    label.textContent = `1 ${expenseCurrency} = ¿cuántos ${groupCurrency}?`;
+    directionInput.value = 'multiply';
+  }
+
+  function updatePreview() {
+    const rate = parseFloat(rateInput.value);
+    const amt = parseFloat(amountInput.value);
+    if (rate > 0 && amt > 0) {
+      const converted = directionInput.value === 'divide' ? amt / rate : amt * rate;
+      preview.textContent = `→ ${amt} ${expenseCurrency} = ${converted.toFixed(2)} ${groupCurrency}`;
+    } else {
+      preview.textContent = '';
+    }
+  }
+
+  rateInput.removeEventListener('input', rateInput._handler);
+  amountInput.removeEventListener('input', amountInput._handler);
+  rateInput._handler = updatePreview;
+  amountInput._handler = updatePreview;
+  rateInput.addEventListener('input', updatePreview);
+  amountInput.addEventListener('input', updatePreview);
+  updatePreview();
+}
+
+document.querySelectorAll('.expense-currency').forEach(select => {
+  const form = select.closest('.member-expense-form');
+  select.addEventListener('change', () => updateRateUI(form, select.value));
+  updateRateUI(form, select.value);
+});
+</script>
 {% endblock content %}
