@@ -13,6 +13,7 @@
 </style>
 
 <div class="page">
+  <a href="{% if group %}{% url 'group' group.id %}{% else %}{% url 'home' %}{% endif %}" style="color:#666;font-size:13px;display:inline-block;margin-bottom:12px;">← {% if group %}Volver al grupo{% else %}Todos los grupos{% endif %}</a>
   <h2>{% if group %}Editar grupo{% else %}Crear grupo{% endif %}</h2>
   <form method="POST">
     {% csrf_token %}

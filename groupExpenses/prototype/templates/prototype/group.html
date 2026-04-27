@@ -27,7 +27,10 @@
 
 <div class="page">
   <div class="top-bar">
-    <a href="{% url 'update-group' group.id %}">Editar grupo</a>
+    <div style="display:flex;gap:12px;align-items:center;">
+      <a href="{% url 'home' %}" style="color:#666;font-size:13px;">← Todos los grupos</a>
+      <a href="{% url 'update-group' group.id %}">Editar grupo</a>
+    </div>
     <form method="POST" onsubmit="return confirm('¿Seguro que querés eliminar este grupo?')">
       {% csrf_token %}
       <input type="hidden" name="delete_group" value="1">
@@ -73,7 +76,7 @@
       <form method="POST" class="member-expense-form" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
         {% csrf_token %}
         <input type="hidden" name="paid_by" value="{{ member_data.name }}"/>
-        <input type="number" name="expense" step="0.01" placeholder="Monto" style="width:90px;"/>
+        <input type="number" name="expense" step="0.01" min="0.01" placeholder="Monto" style="width:90px;"/>
         <select name="expense_currency" class="expense-currency">
           {% for code, label in currency_choices %}
           <option value="{{ code }}" {% if code == group.currency %}selected{% endif %}>{{ code }}</option>

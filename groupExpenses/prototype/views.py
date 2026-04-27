@@ -1,5 +1,6 @@
-from django.shortcuts import render, redirect
-from decimal import Decimal
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from decimal import Decimal, InvalidOperation
 from .models import Group, Expense, CURRENCY_CHOICES
 from .forms import GroupForm
 from .utils import calculate_debts
@@ -11,7 +12,7 @@ def home(request):
 
 
 def group(request, pk):
-    group = Group.objects.get(id=pk)
+    group = get_object_or_404(Group, id=pk)
 
     if request.method == 'POST':
         if 'new_member' in request.POST:
@@ -27,12 +28,29 @@ def group(request, pk):
             paid_by = request.POST.get('paid_by', '').strip()
             amount_str = request.POST.get('expense', '').strip()
             expense_currency = request.POST.get('expense_currency', group.currency)
-            exchange_rate_str = request.POST.get('exchange_rate', '1') or '1'
+            exchange_rate_str = request.POST.get('exchange_rate', '').strip()
 
             if paid_by and amount_str and group.members:
-                original_amount = Decimal(amount_str)
+                try:
+                    original_amount = Decimal(amount_str)
+                except InvalidOperation:
+                    return redirect('group', pk=pk)
+
+                if original_amount <= 0:
+                    messages.error(request, 'El monto debe ser mayor a 0.')
+                    return redirect('group', pk=pk)
+
                 if expense_currency != group.currency:
-                    exchange_rate = Decimal(exchange_rate_str)
+                    if not exchange_rate_str:
+                        messages.error(request, 'Ingresá el tipo de cambio para convertir la moneda.')
+                        return redirect('group', pk=pk)
+                    try:
+                        exchange_rate = Decimal(exchange_rate_str)
+                    except InvalidOperation:
+                        return redirect('group', pk=pk)
+                    if exchange_rate <= 0:
+                        messages.error(request, 'El tipo de cambio debe ser mayor a 0.')
+                        return redirect('group', pk=pk)
                     direction = request.POST.get('exchange_direction', 'multiply')
                     if direction == 'divide':
                         amount = original_amount / exchange_rate
@@ -83,7 +101,7 @@ def group(request, pk):
 
 
 def deleteMember(request, pk):
-    group = Group.objects.get(id=pk)
+    group = get_object_or_404(Group, id=pk)
     if request.method == 'POST':
         member_name = request.POST.get('member_name', '').strip()
         if member_name and member_name in group.members:
@@ -93,11 +111,13 @@ def deleteMember(request, pk):
                 members.remove(member_name)
                 group.members = members
                 group.save()
+            else:
+                messages.error(request, f'No se puede eliminar a {member_name} porque tiene gastos registrados.')
     return redirect('group', pk=pk)
 
 
 def updateName(request, pk):
-    group = Group.objects.get(id=pk)
+    group = get_object_or_404(Group, id=pk)
     if request.method == 'POST':
         name = request.POST.get('name', '').strip()
         if name:
@@ -117,7 +137,7 @@ def createGroup(request):
 
 
 def updateGroup(request, pk):
-    group = Group.objects.get(id=pk)
+    group = get_object_or_404(Group, id=pk)
     old_currency = group.currency
     form = GroupForm(request.POST or None, instance=group)
 

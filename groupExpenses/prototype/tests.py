@@ -204,3 +204,48 @@ class GroupViewTests(TestCase):
         })
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Ingresá un nombre')
+
+    def test_add_expense_negative_amount_rejected(self):
+        self.client.post(f'/group/{self.group.id}/', {
+            'expense': '-100',
+            'paid_by': 'A',
+            'expense_currency': 'ARS',
+        })
+        self.assertEqual(self.group.expense_set.count(), 0)
+
+    def test_add_expense_zero_amount_rejected(self):
+        self.client.post(f'/group/{self.group.id}/', {
+            'expense': '0',
+            'paid_by': 'A',
+            'expense_currency': 'ARS',
+        })
+        self.assertEqual(self.group.expense_set.count(), 0)
+
+    def test_delete_member_with_expenses_shows_error(self):
+        Expense.objects.create(
+            group=self.group, paid_by='A',
+            amount=Decimal('100'), original_amount=Decimal('100'),
+            original_currency='ARS'
+        )
+        response = self.client.post(f'/group/{self.group.id}/delete-member/', {
+            'member_name': 'A'
+        }, follow=True)
+        self.assertContains(response, 'No se puede eliminar')
+
+    def test_add_expense_different_currency_without_rate_rejected(self):
+        self.client.post(f'/group/{self.group.id}/', {
+            'expense': '100',
+            'paid_by': 'A',
+            'expense_currency': 'USD',
+            'exchange_rate': '',
+        })
+        self.assertEqual(self.group.expense_set.count(), 0)
+
+    def test_add_expense_exchange_rate_zero_rejected(self):
+        self.client.post(f'/group/{self.group.id}/', {
+            'expense': '100',
+            'paid_by': 'A',
+            'expense_currency': 'USD',
+            'exchange_rate': '0',
+        })
+        self.assertEqual(self.group.expense_set.count(), 0)

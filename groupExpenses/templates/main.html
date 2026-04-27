@@ -8,6 +8,15 @@
 </head>
 
 <body>
+  {% if messages %}
+  <div style="max-width:680px;margin:16px auto 0;padding:0 16px;">
+    {% for message in messages %}
+    <div style="background:#e74c3c;color:white;padding:10px 16px;border-radius:6px;margin-bottom:8px;font-size:14px;">
+      {{ message }}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
   {% block content %}
 
   {% endblock %}
