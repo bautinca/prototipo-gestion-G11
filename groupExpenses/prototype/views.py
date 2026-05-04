@@ -24,11 +24,48 @@ def group(request, pk):
                 group.save()
             return redirect('group', pk=pk)
 
+        elif 'settlement' in request.POST:
+            paid_by = request.POST.get('paid_by', '').strip()
+            paid_to = request.POST.get('paid_to', '').strip()
+            amount_str = request.POST.get('settlement_amount', '').strip()
+
+            if paid_by and paid_to and paid_by != paid_to and amount_str and group.members:
+                if paid_by not in group.members or paid_to not in group.members:
+                    messages.error(request, 'El miembro pagador y el receptor deben ser parte del grupo.')
+                    return redirect('group', pk=pk)
+                try:
+                    original_amount = Decimal(amount_str)
+                except InvalidOperation:
+                    return redirect('group', pk=pk)
+
+                if original_amount <= 0:
+                    messages.error(request, 'El monto debe ser mayor a 0.')
+                    return redirect('group', pk=pk)
+
+                amount = original_amount
+                debts_before, _ = calculate_debts(group)
+                max_settlement = next((d['amount'] for d in debts_before if d['from'] == paid_by and d['to'] == paid_to), Decimal('0'))
+                if max_settlement <= 0:
+                    messages.error(request, f'No hay deuda de {paid_by} hacia {paid_to}.')
+                    return redirect('group', pk=pk)
+                if amount > max_settlement:
+                    messages.error(request, f'El monto no puede superar la deuda actual ({max_settlement} {group.currency}).')
+                    return redirect('group', pk=pk)
+
+                Expense.objects.create(
+                    group=group,
+                    paid_by=paid_by,
+                    paid_to=paid_to,
+                    transaction_type='settlement',
+                    amount=amount,
+                    original_amount=original_amount,
+                    original_currency=group.currency,
+                )
+            return redirect('group', pk=pk)
+
         elif 'expense' in request.POST:
             paid_by = request.POST.get('paid_by', '').strip()
             amount_str = request.POST.get('expense', '').strip()
-            expense_currency = request.POST.get('expense_currency', group.currency)
-            exchange_rate_str = request.POST.get('exchange_rate', '').strip()
 
             if paid_by and amount_str and group.members:
                 try:
@@ -40,30 +77,12 @@ def group(request, pk):
                     messages.error(request, 'El monto debe ser mayor a 0.')
                     return redirect('group', pk=pk)
 
-                if expense_currency != group.currency:
-                    if not exchange_rate_str:
-                        messages.error(request, 'Ingresá el tipo de cambio para convertir la moneda.')
-                        return redirect('group', pk=pk)
-                    try:
-                        exchange_rate = Decimal(exchange_rate_str)
-                    except InvalidOperation:
-                        return redirect('group', pk=pk)
-                    if exchange_rate <= 0:
-                        messages.error(request, 'El tipo de cambio debe ser mayor a 0.')
-                        return redirect('group', pk=pk)
-                    direction = request.POST.get('exchange_direction', 'multiply')
-                    if direction == 'divide':
-                        amount = original_amount / exchange_rate
-                    else:
-                        amount = original_amount * exchange_rate
-                else:
-                    amount = original_amount
                 Expense.objects.create(
                     group=group,
                     paid_by=paid_by,
-                    amount=amount,
+                    amount=original_amount,
                     original_amount=original_amount,
-                    original_currency=expense_currency,
+                    original_currency=group.currency,
                 )
             return redirect('group', pk=pk)
 

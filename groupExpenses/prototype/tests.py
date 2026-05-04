@@ -104,30 +104,16 @@ class GroupViewTests(TestCase):
         self.client.post(f'/group/{self.group.id}/', {
             'expense': '500',
             'paid_by': 'A',
-            'expense_currency': 'ARS',
         })
         self.assertEqual(self.group.expense_set.count(), 1)
         expense = self.group.expense_set.first()
         self.assertEqual(expense.paid_by, 'A')
         self.assertEqual(expense.amount, Decimal('500'))
 
-    def test_expense_currency_conversion(self):
-        self.client.post(f'/group/{self.group.id}/', {
-            'expense': '10',
-            'paid_by': 'A',
-            'expense_currency': 'USD',
-            'exchange_rate': '1000',
-        })
-        expense = self.group.expense_set.first()
-        self.assertEqual(expense.original_amount, Decimal('10'))
-        self.assertEqual(expense.original_currency, 'USD')
-        self.assertEqual(expense.amount, Decimal('10000'))
-
     def test_expense_same_currency_no_conversion(self):
         self.client.post(f'/group/{self.group.id}/', {
             'expense': '200',
             'paid_by': 'B',
-            'expense_currency': 'ARS',
         })
         expense = self.group.expense_set.first()
         self.assertEqual(expense.amount, Decimal('200'))
@@ -138,7 +124,6 @@ class GroupViewTests(TestCase):
         self.client.post(f'/group/{empty_group.id}/', {
             'expense': '100',
             'paid_by': '',
-            'expense_currency': 'ARS',
         })
         self.assertEqual(empty_group.expense_set.count(), 0)
 
@@ -209,7 +194,6 @@ class GroupViewTests(TestCase):
         self.client.post(f'/group/{self.group.id}/', {
             'expense': '-100',
             'paid_by': 'A',
-            'expense_currency': 'ARS',
         })
         self.assertEqual(self.group.expense_set.count(), 0)
 
@@ -217,7 +201,6 @@ class GroupViewTests(TestCase):
         self.client.post(f'/group/{self.group.id}/', {
             'expense': '0',
             'paid_by': 'A',
-            'expense_currency': 'ARS',
         })
         self.assertEqual(self.group.expense_set.count(), 0)
 
@@ -232,20 +215,3 @@ class GroupViewTests(TestCase):
         }, follow=True)
         self.assertContains(response, 'No se puede eliminar')
 
-    def test_add_expense_different_currency_without_rate_rejected(self):
-        self.client.post(f'/group/{self.group.id}/', {
-            'expense': '100',
-            'paid_by': 'A',
-            'expense_currency': 'USD',
-            'exchange_rate': '',
-        })
-        self.assertEqual(self.group.expense_set.count(), 0)
-
-    def test_add_expense_exchange_rate_zero_rejected(self):
-        self.client.post(f'/group/{self.group.id}/', {
-            'expense': '100',
-            'paid_by': 'A',
-            'expense_currency': 'USD',
-            'exchange_rate': '0',
-        })
-        self.assertEqual(self.group.expense_set.count(), 0)

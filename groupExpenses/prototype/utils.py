@@ -14,8 +14,14 @@ def calculate_debts(group):
 
     paid = {m: Decimal('0') for m in members}
     for expense in group.expense_set.all():
-        if expense.paid_by in paid:
-            paid[expense.paid_by] += expense.amount
+        if expense.transaction_type == 'expense':
+            if expense.paid_by in paid:
+                paid[expense.paid_by] += expense.amount
+        elif expense.transaction_type == 'settlement':
+            if expense.paid_by in paid:
+                paid[expense.paid_by] += expense.amount
+            if expense.paid_to in paid:
+                paid[expense.paid_to] -= expense.amount
 
     balances = {m: paid[m] - share for m in members}
 

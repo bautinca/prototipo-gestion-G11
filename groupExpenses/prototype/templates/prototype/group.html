@@ -76,22 +76,30 @@
       <form method="POST" class="member-expense-form" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
         {% csrf_token %}
         <input type="hidden" name="paid_by" value="{{ member_data.name }}"/>
-        <input type="number" name="expense" step="0.01" min="0.01" placeholder="Monto" style="width:90px;"/>
-        <select name="expense_currency" class="expense-currency">
-          {% for code, label in currency_choices %}
-          <option value="{{ code }}" {% if code == group.currency %}selected{% endif %}>{{ code }}</option>
-          {% endfor %}
-        </select>
-        <input type="hidden" name="exchange_direction" class="exchange-direction-field" value="multiply"/>
-        <div class="exchange-rate-wrapper" style="display:none;flex-direction:column;gap:2px;">
-          <label class="exchange-rate-label" style="font-size:11px;color:#666;"></label>
-          <input type="number" name="exchange_rate" step="0.01" placeholder="Ej: 1000" class="exchange-rate-field" style="width:110px;"/>
-          <span class="exchange-preview" style="font-size:11px;color:#3498db;"></span>
-        </div>
+        <input type="number" name="expense" class="amount-field" step="0.01" min="0.01" placeholder="Monto ({{ group.currency }})" style="width:140px;"/>
         {% if group.members %}
         <button type="submit" class="btn btn-primary btn-sm">Agregar gasto</button>
         {% else %}
         <button type="button" class="btn btn-primary btn-sm" disabled title="Agregá un miembro primero">Agregar gasto</button>
+        {% endif %}
+      </form>
+      <form method="POST" class="member-settlement-form" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+        {% csrf_token %}
+        <input type="hidden" name="settlement" value="1"/>
+        <input type="hidden" name="paid_by" value="{{ member_data.name }}"/>
+        <select name="paid_to" style="width:130px;">
+          <option value="">Pagar a...</option>
+          {% for other_member in group.members %}
+            {% if other_member != member_data.name %}
+              <option value="{{ other_member }}">{{ other_member }}</option>
+            {% endif %}
+          {% endfor %}
+        </select>
+        <input type="number" name="settlement_amount" class="amount-field" step="0.01" min="0.01" placeholder="Monto ({{ group.currency }})" style="width:140px;"/>
+        {% if group.members|length > 1 %}
+        <button type="submit" class="btn btn-primary btn-sm">Pagar</button>
+        {% else %}
+        <button type="button" class="btn btn-primary btn-sm" disabled title="Necesitás otro miembro">Pagar</button>
         {% endif %}
       </form>
       <form method="POST" action="{% url 'delete-member' group.id %}">
@@ -118,7 +126,11 @@
   <ul style="padding-left:18px;">
     {% for expense in expenses %}
     <li style="margin:4px 0;font-size:14px;">
-      {{ expense.paid_by }} pagó {{ expense.original_amount }} {{ expense.original_currency }}
+      {% if expense.transaction_type == 'settlement' and expense.paid_to %}
+        {{ expense.paid_by }} pagó {{ expense.paid_to }} {{ expense.original_amount }} {{ expense.original_currency }}
+      {% else %}
+        {{ expense.paid_by }} pagó {{ expense.original_amount }} {{ expense.original_currency }}
+      {% endif %}
       {% if expense.original_currency != group.currency %}
         (= {{ expense.amount }} {{ group.currency }})
       {% endif %}
@@ -156,61 +168,5 @@ nameInput.addEventListener('blur', () => {
   nameInput.style.display = 'none';
 });
 
-const groupCurrency = '{{ group.currency }}';
-// ARS < EUR < USD (mayor número = moneda más fuerte)
-const STRENGTH = { 'ARS': 1, 'EUR': 2, 'USD': 3 };
-
-function updateRateUI(form, expenseCurrency) {
-  const wrapper = form.querySelector('.exchange-rate-wrapper');
-  const label = form.querySelector('.exchange-rate-label');
-  const directionInput = form.querySelector('.exchange-direction-field');
-  const rateInput = form.querySelector('.exchange-rate-field');
-  const preview = form.querySelector('.exchange-preview');
-  const amountInput = form.querySelector('[name=expense]');
-
-  if (expenseCurrency === groupCurrency) {
-    wrapper.style.display = 'none';
-    return;
-  }
-
-  wrapper.style.display = 'flex';
-
-  const groupStrong = (STRENGTH[groupCurrency] || 1) >= (STRENGTH[expenseCurrency] || 1);
-
-  if (groupStrong) {
-    // group más fuerte: "1 groupCurrency = X expenseCurrency" → dividir
-    label.textContent = `1 ${groupCurrency} = ¿cuántos ${expenseCurrency}?`;
-    directionInput.value = 'divide';
-  } else {
-    // expense más fuerte: "1 expenseCurrency = X groupCurrency" → multiplicar
-    label.textContent = `1 ${expenseCurrency} = ¿cuántos ${groupCurrency}?`;
-    directionInput.value = 'multiply';
-  }
-
-  function updatePreview() {
-    const rate = parseFloat(rateInput.value);
-    const amt = parseFloat(amountInput.value);
-    if (rate > 0 && amt > 0) {
-      const converted = directionInput.value === 'divide' ? amt / rate : amt * rate;
-      preview.textContent = `→ ${amt} ${expenseCurrency} = ${converted.toFixed(2)} ${groupCurrency}`;
-    } else {
-      preview.textContent = '';
-    }
-  }
-
-  rateInput.removeEventListener('input', rateInput._handler);
-  amountInput.removeEventListener('input', amountInput._handler);
-  rateInput._handler = updatePreview;
-  amountInput._handler = updatePreview;
-  rateInput.addEventListener('input', updatePreview);
-  amountInput.addEventListener('input', updatePreview);
-  updatePreview();
-}
-
-document.querySelectorAll('.expense-currency').forEach(select => {
-  const form = select.closest('.member-expense-form');
-  select.addEventListener('change', () => updateRateUI(form, select.value));
-  updateRateUI(form, select.value);
-});
 </script>
 {% endblock content %}

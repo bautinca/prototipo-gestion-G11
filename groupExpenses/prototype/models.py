@@ -20,16 +20,25 @@ class Group(models.Model):
     @property
     def total(self):
         from django.db.models import Sum
-        result = self.expense_set.aggregate(Sum('amount'))['amount__sum']
+        result = self.expense_set.filter(transaction_type='expense').aggregate(Sum('amount'))['amount__sum']
         return result if result is not None else Decimal('0')
 
 
 class Expense(models.Model):
+    TRANSACTION_CHOICES = [
+        ('expense', 'Gasto'),
+        ('settlement', 'Liquidación'),
+    ]
+
     group = models.ForeignKey(Group, on_delete=models.CASCADE)
     paid_by = models.CharField(max_length=200)
+    paid_to = models.CharField(max_length=200, blank=True, null=True)
+    transaction_type = models.CharField(max_length=12, choices=TRANSACTION_CHOICES, default='expense')
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     original_amount = models.DecimalField(max_digits=12, decimal_places=2)
     original_currency = models.CharField(max_length=3, choices=CURRENCY_CHOICES)
 
     def __str__(self):
+        if self.transaction_type == 'settlement' and self.paid_to:
+            return f"{self.paid_by} → {self.paid_to}: {self.amount}"
         return f"{self.paid_by}: {self.amount}"
