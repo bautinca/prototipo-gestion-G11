@@ -62,15 +62,12 @@
   <div class="member-row">
     <div class="member-header">
       <strong>{{ member_data.name }}</strong>
-      {% if member_data.status.type == 'cobrar' %}
-        <span class="badge badge-green">A cobrar ${{ member_data.status.amount }}</span>
-      {% elif member_data.status.type == 'debe' %}
-        {% for debt in member_data.status.debts %}
+      {% for debt in member_data.status.debts_owed %}
         <span class="badge badge-red">Debe ${{ debt.amount }} a {{ debt.to }}</span>
-        {% endfor %}
-      {% else %}
-        <span class="badge badge-gray">Al día</span>
-      {% endif %}
+      {% endfor %}
+      {% for debtor in member_data.status.debts_owed_to %}
+        <span class="badge badge-green">A cobrar ${{ debtor.amount }} de {{ debtor.from }}</span>
+      {% endfor %}
     </div>
     <div class="member-actions">
       <form method="POST" class="member-expense-form" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
