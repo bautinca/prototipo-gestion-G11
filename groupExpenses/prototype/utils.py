@@ -8,40 +8,40 @@ def calculate_debts(group):
     if not members:
         return [], {}
 
-    total = group.total
-    n = Decimal(len(members))
-    share = (total / n).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    n = len(members)
+    # Matriz de deudas: debts_matrix[debtor][creditor] = amount que debtor debe a creditor
+    debts_matrix = {m: {om: Decimal('0') for om in members if om != m} for m in members}
 
+    for expense in group.expense_set.all():
+        if expense.transaction_type == 'expense':
+            amount_per_member = (expense.amount / Decimal(n)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            for member in members:
+                if member != expense.paid_by:
+                    debts_matrix[member][expense.paid_by] += amount_per_member
+        elif expense.transaction_type == 'settlement':
+            # Settlement: paid_by pagó amount a paid_to, reduce deuda de paid_by a paid_to
+            debts_matrix[expense.paid_by][expense.paid_to] -= expense.amount
+
+    # Calcular deudas netas
+    debts = []
+    for debtor in members:
+        for creditor in members:
+            if debtor != creditor:
+                net = debts_matrix[debtor][creditor] - debts_matrix[creditor][debtor]
+                if net > EPSILON:
+                    debts.append({'from': debtor, 'to': creditor, 'amount': net.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)})
+
+    # Calcular balances para la vista (mantener igual para compatibilidad)
+    total = group.total
+    share = (total / Decimal(n)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
     paid = {m: Decimal('0') for m in members}
     for expense in group.expense_set.all():
         if expense.transaction_type == 'expense':
-            if expense.paid_by in paid:
-                paid[expense.paid_by] += expense.amount
+            paid[expense.paid_by] += expense.amount
         elif expense.transaction_type == 'settlement':
-            if expense.paid_by in paid:
-                paid[expense.paid_by] += expense.amount
-            if expense.paid_to in paid:
-                paid[expense.paid_to] -= expense.amount
+            paid[expense.paid_by] += expense.amount
+            paid[expense.paid_to] -= expense.amount
 
     balances = {m: paid[m] - share for m in members}
-
-    creditors = [[m, b] for m, b in balances.items() if b > EPSILON]
-    debtors = [[m, -b] for m, b in balances.items() if b < -EPSILON]
-    creditors.sort(key=lambda x: -x[1])
-    debtors.sort(key=lambda x: -x[1])
-
-    debts = []
-    i, j = 0, 0
-    while i < len(creditors) and j < len(debtors):
-        creditor, credit = creditors[i]
-        debtor, debt = debtors[j]
-        amount = min(credit, debt).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-        debts.append({'from': debtor, 'to': creditor, 'amount': amount})
-        creditors[i][1] = credit - amount
-        debtors[j][1] = debt - amount
-        if creditors[i][1] < EPSILON:
-            i += 1
-        if debtors[j][1] < EPSILON:
-            j += 1
 
     return debts, balances
