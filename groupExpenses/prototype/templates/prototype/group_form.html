@@ -31,7 +31,7 @@
     <input type="hidden" name="exchange_direction" id="exchange-direction" value="multiply"/>
     <div id="exchange-rate-field" class="field" style="display:none;">
       <label id="exchange-rate-label" for="exchange_rate"></label>
-      <input type="number" name="exchange_rate" id="exchange_rate" step="0.01" min="0" placeholder="Ej: 1000"/>
+      <input type="number" name="exchange_rate" id="exchange_rate" step="0.01" min="0" max="999999999.99" placeholder="Ej: 1000"/>
       <div id="exchange-preview" style="font-size:12px;color:#3498db;margin-top:4px;"></div>
     </div>
     {% endif %}

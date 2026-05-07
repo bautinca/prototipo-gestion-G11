@@ -6,6 +6,8 @@ from .models import Group, Expense, CURRENCY_CHOICES
 from .forms import GroupForm
 from .utils import calculate_debts
 
+MAX_AMOUNT = Decimal('999999999.99')
+
 
 def home(request):
     groups = Group.objects.all()
@@ -44,6 +46,10 @@ def group(request, pk):
                     messages.error(request, 'El monto debe ser mayor a 0.')
                     return redirect('group', pk=pk)
 
+                if original_amount > MAX_AMOUNT:
+                    messages.error(request, 'El sistema no admite montos demasiado altos.')
+                    return redirect('group', pk=pk)
+
                 amount = original_amount
                 debts_before, _ = calculate_debts(group)
                 max_settlement = next((d['amount'] for d in debts_before if d['from'] == paid_by and d['to'] == paid_to), Decimal('0'))
@@ -77,6 +83,10 @@ def group(request, pk):
 
                 if original_amount <= 0:
                     messages.error(request, 'El monto debe ser mayor a 0.')
+                    return redirect('group', pk=pk)
+
+                if original_amount > MAX_AMOUNT:
+                    messages.error(request, 'El sistema no admite montos demasiado altos.')
                     return redirect('group', pk=pk)
 
                 Expense.objects.create(
@@ -176,9 +186,15 @@ def updateGroup(request, pk):
                     direction = request.POST.get('exchange_direction', 'multiply')
                     for expense in group.expense_set.all():
                         if direction == 'divide':
-                            expense.amount = expense.amount / rate
+                            new_amount = expense.amount / rate
                         else:
-                            expense.amount = expense.amount * rate
+                            new_amount = expense.amount * rate
+                        
+                        if new_amount > MAX_AMOUNT:
+                            messages.error(request, 'La conversión de moneda resultaría en montos demasiado altos. Operación cancelada.')
+                            return redirect('update-group', pk=pk)
+                        
+                        expense.amount = new_amount
                         expense.save()
             form.save()
             return redirect('group', pk=pk)
