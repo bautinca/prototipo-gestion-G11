@@ -1,33 +1,50 @@
 {% extends "main.html" %}
-
 {% block content %}
 <style>
-  body { background: #f5f6fa; }
-  .page { max-width: 680px; margin: 40px auto; background: white; border-radius: 10px; padding: 28px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
-  .group-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; }
-  .group-row a { font-size: 16px; font-weight: 500; color: #333; text-decoration: none; }
-  .group-row a:hover { color: #3498db; }
-  .btn-danger { background: #e74c3c; color: white; border: none; padding: 4px 10px; border-radius: 5px; cursor: pointer; font-size: 12px; }
-  .btn-create { display: inline-block; margin-bottom: 20px; background: #3498db; color: white; padding: 8px 16px; border-radius: 5px; text-decoration: none; font-size: 14px; }
-  hr { border: none; border-top: 1px solid #eee; margin: 0; }
+  .page { max-width: 720px; margin: 40px auto; padding: 0 16px; }
+  .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+  .header h1 { font-size: 24px; font-weight: 700; color: #0f172a; margin: 0; }
+  .btn-create { background: #6366f1; color: white; padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; transition: background 0.15s; }
+  .btn-create:hover { background: #4f46e5; text-decoration: none; }
+  .card { background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04); overflow: hidden; }
+  .group-item { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid #f1f5f9; transition: background 0.15s; }
+  .group-item:last-child { border-bottom: none; }
+  .group-item:hover { background: #fafafa; }
+  .group-link { font-size: 15px; font-weight: 600; color: #0f172a; display: flex; align-items: center; gap: 10px; }
+  .group-link:hover { color: #6366f1; text-decoration: none; }
+  .group-dot { width: 8px; height: 8px; border-radius: 50%; background: #6366f1; flex-shrink: 0; }
+  .btn-del { background: none; border: 1px solid #fca5a5; color: #ef4444; padding: 5px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; font-weight: 500; font-family: inherit; transition: background 0.15s; }
+  .btn-del:hover { background: #fef2f2; }
+  .empty { text-align: center; padding: 56px 20px; color: #94a3b8; }
+  .empty-icon { font-size: 40px; margin-bottom: 12px; }
+  .empty p { font-size: 15px; margin: 0 0 20px; }
 </style>
 
 <div class="page">
-  <a href="{% url 'create-group' %}" class="btn-create">+ Crear grupo</a>
-  <h2>Lista de grupos</h2>
-  {% for group in groups %}
-  <div class="group-row">
-    <a href="{% url 'group' group.id %}">{{ group.name }}</a>
-    <form method="POST" action="{% url 'group' group.id %}"
-          onsubmit="return confirm('¿Seguro que querés eliminar {{ group.name }}?')">
-      {% csrf_token %}
-      <input type="hidden" name="delete_group" value="1"/>
-      <button type="submit" class="btn-danger">Eliminar</button>
-    </form>
+  <div class="header">
+    <h1>💸 Mis grupos</h1>
+    <a href="{% url 'create-group' %}" class="btn-create">+ Nuevo grupo</a>
   </div>
-  <hr>
-  {% empty %}
-  <p style="color:#aaa;">No tenés grupos. ¡Creá uno!</p>
-  {% endfor %}
+  <div class="card">
+    {% for group in groups %}
+    <div class="group-item">
+      <a href="{% url 'group' group.id %}" class="group-link">
+        <span class="group-dot"></span>
+        {{ group.name }}
+      </a>
+      <form method="POST" action="{% url 'group' group.id %}" onsubmit="return confirm('¿Eliminar {{ group.name }}?')">
+        {% csrf_token %}
+        <input type="hidden" name="delete_group" value="1"/>
+        <button type="submit" class="btn-del">Eliminar</button>
+      </form>
+    </div>
+    {% empty %}
+    <div class="empty">
+      <div class="empty-icon">🗂️</div>
+      <p>Todavía no tenés grupos.</p>
+      <a href="{% url 'create-group' %}" class="btn-create">Crear mi primer grupo</a>
+    </div>
+    {% endfor %}
+  </div>
 </div>
 {% endblock content %}

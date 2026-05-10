@@ -1,43 +1,68 @@
 {% extends 'main.html' %}
-
 {% block content %}
 <style>
-  body { background: #f5f6fa; }
-  .page { max-width: 500px; margin: 40px auto; background: white; border-radius: 10px; padding: 28px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
-  .field { margin-bottom: 16px; }
-  label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 4px; }
-  input[type=text], input[type=number], select { width: 100%; border: 1px solid #ddd; border-radius: 5px; padding: 8px; font-size: 14px; box-sizing: border-box; }
-  .error-msg { color: #e74c3c; font-size: 12px; margin-top: 4px; }
-  .btn { padding: 8px 20px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; }
-  #exchange-rate-field { display: none; margin-bottom: 16px; }
+  .page { max-width: 480px; margin: 48px auto; padding: 0 16px; }
+  .back-link { display: inline-flex; align-items: center; gap: 6px; color: #64748b; font-size: 13px; margin-bottom: 20px; }
+  .back-link:hover { color: #6366f1; text-decoration: none; }
+  .card { background: white; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); padding: 36px; }
+  .form-header { text-align: center; margin-bottom: 28px; }
+  .form-icon { font-size: 44px; margin-bottom: 12px; line-height: 1; }
+  .form-header h2 { font-size: 22px; font-weight: 700; color: #0f172a; margin: 0 0 6px; }
+  .form-header p { font-size: 14px; color: #64748b; margin: 0; }
+  .field { margin-bottom: 20px; }
+  label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px; }
+  input[type=text], input[type=number], select {
+    width: 100%; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 10px 12px;
+    font-size: 14px; font-family: inherit; color: #0f172a; outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s; background: white;
+  }
+  input[type=text]:focus, input[type=number]:focus, select:focus {
+    border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1);
+  }
+  .error-msg { color: #ef4444; font-size: 12px; margin-top: 4px; }
+  .btn-submit { width: 100%; background: #6366f1; color: white; border: none; border-radius: 8px; padding: 12px; font-size: 15px; font-weight: 600; cursor: pointer; font-family: inherit; transition: background 0.2s; margin-top: 4px; }
+  .btn-submit:hover { background: #4f46e5; }
+  .exchange-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 20px; display: none; }
+  .exchange-box label { color: #374151; }
+  .exchange-preview { font-size: 12px; color: #6366f1; margin-top: 6px; font-weight: 500; }
+  .divider { border: none; border-top: 1px solid #f1f5f9; margin: 24px 0; }
 </style>
 
 <div class="page">
-  <a href="{% if group %}{% url 'group' group.id %}{% else %}{% url 'home' %}{% endif %}" style="color:#666;font-size:13px;display:inline-block;margin-bottom:12px;">← {% if group %}Volver al grupo{% else %}Todos los grupos{% endif %}</a>
-  <h2>{% if group %}Editar grupo{% else %}Crear grupo{% endif %}</h2>
-  <form method="POST">
-    {% csrf_token %}
-    {% for field in form %}
-    <div class="field">
-      {{ field.label_tag }}
-      {{ field }}
-      {% if field.errors %}
-        <div class="error-msg">{{ field.errors|join:", " }}</div>
+  <a href="{% if group %}{% url 'group' group.id %}{% else %}{% url 'home' %}{% endif %}" class="back-link">
+    ← {% if group %}Volver al grupo{% else %}Todos los grupos{% endif %}
+  </a>
+  <div class="card">
+    <div class="form-header">
+      <div class="form-icon">{% if group %}✏️{% else %}🎉{% endif %}</div>
+      <h2>{% if group %}Editar grupo{% else %}Crear nuevo grupo{% endif %}</h2>
+      <p>{% if group %}Modificá los datos del grupo{% else %}Empezá a registrar gastos compartidos{% endif %}</p>
+    </div>
+    <form method="POST">
+      {% csrf_token %}
+      {% for field in form %}
+      <div class="field">
+        {{ field.label_tag }}
+        {{ field }}
+        {% if field.errors %}<div class="error-msg">{{ field.errors|join:", " }}</div>{% endif %}
+      </div>
+      {% endfor %}
+
+      {% if group %}
+      <hr class="divider">
+      <input type="hidden" name="exchange_direction" id="exchange-direction" value="multiply"/>
+      <div class="exchange-box" id="exchange-rate-field">
+        <label id="exchange-rate-label"></label>
+        <input type="number" name="exchange_rate" id="exchange_rate" step="0.01" min="0" max="999999999.99" placeholder="Ej: 1000" style="margin-top:6px;"/>
+        <div class="exchange-preview" id="exchange-preview"></div>
+      </div>
       {% endif %}
-    </div>
-    {% endfor %}
 
-    {% if group %}
-    <input type="hidden" name="exchange_direction" id="exchange-direction" value="multiply"/>
-    <div id="exchange-rate-field" class="field" style="display:none;">
-      <label id="exchange-rate-label" for="exchange_rate"></label>
-      <input type="number" name="exchange_rate" id="exchange_rate" step="0.01" min="0" max="999999999.99" placeholder="Ej: 1000"/>
-      <div id="exchange-preview" style="font-size:12px;color:#3498db;margin-top:4px;"></div>
-    </div>
-    {% endif %}
-
-    <button type="submit" class="btn">Guardar</button>
-  </form>
+      <button type="submit" class="btn-submit">
+        {% if group %}Guardar cambios{% else %}Crear grupo{% endif %}
+      </button>
+    </form>
+  </div>
 </div>
 
 {% if group %}
@@ -54,25 +79,16 @@ const totalAmount = {{ group.total }};
 
 function updateUI() {
   const newCurrency = currencySelect.value;
-  if (newCurrency === originalCurrency) {
-    rateField.style.display = 'none';
-    return;
-  }
-
+  if (newCurrency === originalCurrency) { rateField.style.display = 'none'; return; }
   rateField.style.display = 'block';
-
   const origStrong = (STRENGTH[originalCurrency] || 1) >= (STRENGTH[newCurrency] || 1);
-
   if (origStrong) {
-    // moneda original más fuerte: "1 original = X nueva" → multiplicar (ej: 100 USD * 1000 = 100.000 ARS)
-    rateLabel.textContent = `1 ${originalCurrency} = ¿cuántos ${newCurrency}? (para reconvertir el historial)`;
+    rateLabel.textContent = `1 ${originalCurrency} = ¿cuántos ${newCurrency}?`;
     directionInput.value = 'multiply';
   } else {
-    // moneda nueva más fuerte: "1 nueva = X original" → dividir (ej: 1000 ARS / 1000 = 1 USD)
-    rateLabel.textContent = `1 ${newCurrency} = ¿cuántos ${originalCurrency}? (para reconvertir el historial)`;
+    rateLabel.textContent = `1 ${newCurrency} = ¿cuántos ${originalCurrency}?`;
     directionInput.value = 'divide';
   }
-
   updatePreview();
 }
 
@@ -81,7 +97,7 @@ function updatePreview() {
   if (rate > 0 && totalAmount > 0) {
     const newCurrency = currencySelect.value;
     const converted = directionInput.value === 'divide' ? totalAmount / rate : totalAmount * rate;
-    preview.textContent = `Total actual: ${totalAmount} ${originalCurrency} → ${converted.toFixed(2)} ${newCurrency}`;
+    preview.textContent = `Total: ${totalAmount} ${originalCurrency} → ${converted.toFixed(2)} ${newCurrency}`;
   } else {
     preview.textContent = '';
   }
