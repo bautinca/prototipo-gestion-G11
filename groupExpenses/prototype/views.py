@@ -1,6 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
-from django.utils import timezone
 from decimal import Decimal, InvalidOperation
 from .models import Group, Expense, CURRENCY_CHOICES
 from .forms import GroupForm
@@ -24,7 +23,6 @@ def group(request, pk):
                 members = group.members
                 members.append(new_member)
                 group.members = members
-                group.member_joined_dates[new_member] = timezone.now().isoformat()
                 group.save()
             return redirect('group', pk=pk)
 
@@ -106,20 +104,16 @@ def group(request, pk):
 
     debts, balances = calculate_debts(group)
 
-    # Calculate debts for each member
-    member_debts_owed = {m: [] for m in group.members}  # debts this member owes
-    member_debts_owed_to = {m: [] for m in group.members}  # debts owed to this member
-
-    for d in debts:
-        member_debts_owed[d['from']].append({'to': d['to'], 'amount': d['amount']})
-        member_debts_owed_to[d['to']].append({'from': d['from'], 'amount': d['amount']})
-
     members_data = []
     for member in group.members:
-        status = {
-            'debts_owed': member_debts_owed.get(member, []),
-            'debts_owed_to': member_debts_owed_to.get(member, [])
-        }
+        balance = balances.get(member, Decimal('0'))
+        if balance > Decimal('0.01'):
+            status = {'type': 'cobrar', 'amount': balance}
+        elif balance < Decimal('-0.01'):
+            member_debts = [d for d in debts if d['from'] == member]
+            status = {'type': 'debe', 'debts': member_debts}
+        else:
+            status = {'type': 'al_dia'}
         members_data.append({'name': member, 'status': status})
 
     cost_per_member = (group.total / len(group.members)) if group.members else Decimal('0')

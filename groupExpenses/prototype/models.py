@@ -11,7 +11,6 @@ class Group(models.Model):
     name = models.CharField(max_length=200)
     currency = models.CharField(max_length=3, choices=CURRENCY_CHOICES, default='ARS')
     members = models.JSONField(default=list)
-    member_joined_dates = models.JSONField(default=dict)
     updated = models.DateField(auto_now=True)
     created = models.DateTimeField(auto_now_add=True)
 
@@ -38,7 +37,6 @@ class Expense(models.Model):
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     original_amount = models.DecimalField(max_digits=12, decimal_places=2)
     original_currency = models.CharField(max_length=3, choices=CURRENCY_CHOICES)
-    created = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         if self.transaction_type == 'settlement' and self.paid_to:

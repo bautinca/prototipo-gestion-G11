@@ -63,12 +63,15 @@
   <div class="member-row">
     <div class="member-header">
       <strong>{{ member_data.name }}</strong>
-      {% for debt in member_data.status.debts_owed %}
-        <button class="badge badge-red" onclick="showSettlementForm('{{ member_data.name }}', '{{ debt.to }}', '{{ debt.amount }}', '{{ group.currency }}')">Debe ${{ debt.amount }} a {{ debt.to }}</button>
-      {% endfor %}
-      {% for debtor in member_data.status.debts_owed_to %}
-        <span class="badge badge-green">A cobrar ${{ debtor.amount }} de {{ debtor.from }}</span>
-      {% endfor %}
+      {% if member_data.status.type == 'cobrar' %}
+        <span class="badge badge-green">A cobrar ${{ member_data.status.amount }}</span>
+      {% elif member_data.status.type == 'debe' %}
+        {% for debt in member_data.status.debts %}
+        <span class="badge badge-red">Debe ${{ debt.amount }} a {{ debt.to }}</span>
+        {% endfor %}
+      {% else %}
+        <span class="badge badge-gray">Al día</span>
+      {% endif %}
     </div>
     <div class="member-actions">
       <form method="POST" class="member-expense-form" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
