@@ -1,194 +1,305 @@
 {% extends "main.html" %}
-
 {% block content %}
 <style>
-  body { background: #f5f6fa; }
-  .page { max-width: 680px; margin: 0 auto; background: white; border-radius: 10px; padding: 28px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
-  .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-  .btn { padding: 6px 14px; border-radius: 5px; border: none; cursor: pointer; font-size: 13px; }
-  .btn-danger { background: #e74c3c; color: white; }
-  .btn-primary { background: #3498db; color: white; }
-  .btn-sm { padding: 4px 10px; font-size: 12px; }
-  input[type=text], input[type=number], select { border: 1px solid #ddd; border-radius: 5px; padding: 5px 8px; font-size: 13px; }
-  .badge { padding: 3px 10px; border-radius: 12px; font-size: 12px; color: white; font-weight: 500; margin-left: 8px; }
-  .badge-green { background: #27ae60; }
-  .badge-red { background: #e74c3c; cursor: pointer; border: none; }
-  .badge-red:hover { background: #c0392b; }
-  .badge-gray { background: #95a5a6; }
-  .member-row { margin-bottom: 14px; }
-  .member-header { display: flex; align-items: center; margin-bottom: 6px; }
-  .member-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-  .summary { background: #f8f9fa; border-radius: 8px; padding: 14px; margin-top: 16px; }
-  .summary p { margin: 4px 0; font-size: 14px; }
-  hr { border: none; border-top: 1px solid #eee; margin: 14px 0; }
-  h1 { cursor: pointer; border-bottom: 2px dashed #ccc; display: inline-block; padding-bottom: 2px; }
-  h1:hover { border-color: #3498db; color: #3498db; }
-  #name-input { font-size: 24px; font-weight: bold; border: 2px solid #3498db; border-radius: 5px; padding: 4px 8px; display: none; }
+  .page { max-width: 720px; margin: 0 auto; padding: 24px 16px 48px; }
+
+  .nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+  .nav-links { display: flex; align-items: center; gap: 16px; }
+  .nav-link { font-size: 13px; color: #64748b; }
+  .nav-link:hover { color: #6366f1; text-decoration: none; }
+  .btn-delete-group { background: none; border: 1px solid #fca5a5; color: #ef4444; padding: 6px 12px; border-radius: 8px; font-size: 12px; cursor: pointer; font-weight: 500; font-family: inherit; }
+  .btn-delete-group:hover { background: #fef2f2; }
+
+  .group-header { margin-bottom: 20px; }
+  .group-title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
+  .group-title { font-size: 28px; font-weight: 700; color: #0f172a; cursor: pointer; border-bottom: 2px dashed #e2e8f0; padding-bottom: 2px; display: inline-block; }
+  .group-title:hover { border-color: #6366f1; color: #6366f1; }
+  .currency-badge { background: #ede9fe; color: #6d28d9; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 20px; }
+  #name-input-field { font-size: 24px; font-weight: 700; border: 2px solid #6366f1; border-radius: 8px; padding: 4px 10px; display: none; font-family: inherit; outline: none; color: #0f172a; }
+  .group-meta { font-size: 13px; color: #94a3b8; }
+
+  .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+  .stat-card { background: white; border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); text-align: center; }
+  .stat-value { font-size: 20px; font-weight: 700; color: #0f172a; }
+  .stat-label { font-size: 11px; color: #94a3b8; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.05em; }
+
+  .card { background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); margin-bottom: 20px; overflow: hidden; }
+  .card-header { padding: 18px 20px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; }
+  .card-title { font-size: 14px; font-weight: 600; color: #0f172a; }
+
+  .chart-wrap { max-width: 260px; margin: 16px auto; }
+
+  .add-member-form { display: flex; gap: 8px; align-items: center; }
+  .input-sm { border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 7px 12px; font-size: 13px; font-family: inherit; outline: none; transition: border-color 0.2s; color: #0f172a; }
+  .input-sm:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.08); }
+  .btn { padding: 7px 14px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px; font-weight: 500; font-family: inherit; transition: all 0.15s; }
+  .btn-primary { background: #6366f1; color: white; }
+  .btn-primary:hover { background: #4f46e5; }
+  .btn-danger-outline { background: none; border: 1px solid #fca5a5; color: #ef4444; }
+  .btn-danger-outline:hover { background: #fef2f2; }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+
+  .member-item { padding: 14px 20px; border-bottom: 1px solid #f8fafc; }
+  .member-item:last-child { border-bottom: none; }
+  .member-top { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+  .member-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: white; flex-shrink: 0; }
+  .member-info { flex: 1; }
+  .member-name { font-size: 14px; font-weight: 600; color: #0f172a; margin-bottom: 4px; }
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+  .badge-green { background: #dcfce7; color: #16a34a; }
+  .badge-red { background: #fef2f2; color: #dc2626; }
+  .badge-gray { background: #f1f5f9; color: #64748b; }
+  .debt-row { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+  .pay-btn { background: none; border: 1px solid #c7d2fe; color: #6366f1; padding: 2px 8px; border-radius: 6px; font-size: 11px; cursor: pointer; font-weight: 500; font-family: inherit; transition: background 0.15s; }
+  .pay-btn:hover { background: #ede9fe; }
+  .member-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+  .empty-msg { padding: 32px 20px; text-align: center; color: #94a3b8; font-size: 14px; }
+
+  .history-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; border-bottom: 1px solid #f8fafc; font-size: 13px; }
+  .history-item:last-child { border-bottom: none; }
+  .history-who { font-weight: 500; color: #334155; }
+  .history-amount { color: #6366f1; font-weight: 600; }
+  .history-settlement { color: #16a34a; font-weight: 600; }
+
+  .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15,23,42,0.5); z-index: 1000; justify-content: center; align-items: center; }
+  .modal-box { background: white; border-radius: 16px; padding: 28px; max-width: 380px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
+  .modal-title { font-size: 17px; font-weight: 700; margin-bottom: 8px; color: #0f172a; }
+  .modal-info { font-size: 14px; color: #64748b; margin-bottom: 20px; }
+  .modal-label { font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px; display: block; }
+  .modal-input { width: 100%; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; font-size: 14px; font-family: inherit; outline: none; transition: border-color 0.2s; }
+  .modal-input:focus { border-color: #6366f1; }
+  .modal-actions { display: flex; gap: 8px; margin-top: 20px; }
+  .btn-cancel { background: #f1f5f9; color: #64748b; flex: 1; }
+  .btn-cancel:hover { background: #e2e8f0; }
+
+  @media (max-width: 500px) {
+    .stats-grid { grid-template-columns: 1fr 1fr; }
+    .stats-grid .stat-card:last-child { grid-column: span 2; }
+  }
 </style>
 
+{{ paid_amounts|json_script:"paid-data" }}
+{{ group.members|json_script:"members-data" }}
+
 <div class="page">
-  <div class="top-bar">
-    <div style="display:flex;gap:12px;align-items:center;">
-      <a href="{% url 'home' %}" style="color:#666;font-size:13px;">← Todos los grupos</a>
-      <a href="{% url 'update-group' group.id %}">Editar grupo</a>
+  <div class="nav">
+    <div class="nav-links">
+      <a href="{% url 'home' %}" class="nav-link">← Grupos</a>
+      <a href="{% url 'update-group' group.id %}" class="nav-link" style="color:#6366f1;">✏️ Editar</a>
     </div>
-    <form method="POST" onsubmit="return confirm('¿Seguro que querés eliminar este grupo?')">
+    <form method="POST" onsubmit="return confirm('¿Eliminar el grupo {{ group.name }}?')">
       {% csrf_token %}
       <input type="hidden" name="delete_group" value="1">
-      <button type="submit" class="btn btn-danger btn-sm">Eliminar grupo</button>
+      <button type="submit" class="btn-delete-group">Eliminar grupo</button>
     </form>
   </div>
 
-  <div style="font-size:12px;color:#aaa;margin-bottom:4px;">Click en el nombre para editar</div>
-  <h1 id="group-name">{{ group.name }}</h1>
-  <form id="name-form" method="POST" action="{% url 'update-name' group.id %}" style="display:none;">
-    {% csrf_token %}
-    <input type="text" id="name-input" name="name" value="{{ group.name }}"/>
-  </form>
-  <p style="color:#666;font-size:14px;margin-top:8px;">Moneda: <strong>{{ group.currency }}</strong></p>
-
-  <hr>
-
-  <form method="POST">
-    {% csrf_token %}
-    <input type="text" name="new_member" placeholder="Nombre del miembro"/>
-    <button type="submit" class="btn btn-primary btn-sm">Agregar miembro</button>
-  </form>
-
-  <hr>
-
-  <h3>Miembros del grupo:</h3>
-
-  {% for member_data in members_data %}
-  <div class="member-row">
-    <div class="member-header">
-      <strong>{{ member_data.name }}</strong>
-      {% if member_data.status.type == 'cobrar' %}
-        <span class="badge badge-green">A cobrar ${{ member_data.status.amount }}</span>
-      {% elif member_data.status.type == 'debe' %}
-        {% for debt in member_data.status.debts %}
-        <span class="badge badge-red">Debe ${{ debt.amount }} a {{ debt.to }}</span>
-        {% endfor %}
-      {% else %}
-        <span class="badge badge-gray">Al día</span>
-      {% endif %}
+  <div class="group-header">
+    <div class="group-title-row">
+      <span class="group-title" id="group-name">{{ group.name }}</span>
+      <span class="currency-badge">{{ group.currency }}</span>
     </div>
-    <div class="member-actions">
-      <form method="POST" class="member-expense-form" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-        {% csrf_token %}
-        <input type="hidden" name="paid_by" value="{{ member_data.name }}"/>
-        <input type="number" name="expense" class="amount-field" step="0.01" min="0.01" max="999999999.99" placeholder="Monto ({{ group.currency }})" style="width:140px;"/>
-        {% if group.members %}
-        <button type="submit" class="btn btn-primary btn-sm">Agregar gasto</button>
-        {% else %}
-        <button type="button" class="btn btn-primary btn-sm" disabled title="Agregá un miembro primero">Agregar gasto</button>
-        {% endif %}
-      </form>
-      <form method="POST" action="{% url 'delete-member' group.id %}">
-        {% csrf_token %}
-        <input type="hidden" name="member_name" value="{{ member_data.name }}"/>
-        <button type="submit" class="btn btn-danger btn-sm"
-                onclick="return confirm('¿Eliminar a {{ member_data.name }}?')">Eliminar</button>
-      </form>
+    <form id="name-form" method="POST" action="{% url 'update-name' group.id %}" style="display:none;">
+      {% csrf_token %}
+      <input type="text" id="name-input-field" name="name" value="{{ group.name }}"/>
+    </form>
+    <div class="group-meta">Creado el {{ group.created|date:"d/m/Y" }} · {{ group.members|length }} miembro{{ group.members|length|pluralize:"s" }}</div>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-value">{{ group.total }}</div>
+      <div class="stat-label">Total gastado</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">{{ cost_per_member }}</div>
+      <div class="stat-label">Por persona</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">{{ group.members|length }}</div>
+      <div class="stat-label">Miembros</div>
     </div>
   </div>
-  <hr>
-  {% empty %}
-  <p style="color:#aaa;">No hay miembros. Agregá uno arriba.</p>
-  <hr>
-  {% endfor %}
 
-  <div class="summary">
-    <p><strong>Total del grupo:</strong> {{ group.total }} {{ group.currency }}</p>
-    <p><strong>Cada miembro debería poner:</strong> {{ cost_per_member }} {{ group.currency }}</p>
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">👥 Miembros</div>
+      <form method="POST" class="add-member-form">
+        {% csrf_token %}
+        <input type="text" name="new_member" class="input-sm" placeholder="Nombre..." style="width:130px;"/>
+        <button type="submit" class="btn btn-primary btn-sm">+ Agregar</button>
+      </form>
+    </div>
+    {% for member_data in members_data %}
+    <div class="member-item">
+      <div class="member-top">
+        <div class="member-avatar" data-idx="{{ forloop.counter0 }}">{{ member_data.name|first|upper }}</div>
+        <div class="member-info">
+          <div class="member-name">{{ member_data.name }}</div>
+          {% if member_data.status.type == 'cobrar' %}
+            <span class="badge badge-green">↑ A cobrar {{ member_data.status.amount }} {{ group.currency }}</span>
+          {% elif member_data.status.type == 'debe' %}
+            {% for debt in member_data.status.debts %}
+            <div class="debt-row">
+              <span class="badge badge-red">↓ Debe {{ debt.amount }} {{ group.currency }} a {{ debt.to }}</span>
+              <button class="pay-btn" onclick="showSettlementForm('{{ member_data.name }}', '{{ debt.to }}', '{{ debt.amount }}', '{{ group.currency }}')">Pagar</button>
+            </div>
+            {% endfor %}
+          {% else %}
+            <span class="badge badge-gray">✓ Al día</span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="member-actions">
+        <form method="POST" style="display:flex;gap:6px;align-items:center;">
+          {% csrf_token %}
+          <input type="hidden" name="paid_by" value="{{ member_data.name }}"/>
+          <input type="number" name="expense" class="input-sm" step="0.01" min="0.01" max="999999999.99" placeholder="Monto ({{ group.currency }})" style="width:160px;"/>
+          <button type="submit" class="btn btn-primary btn-sm">+ Gasto</button>
+        </form>
+        <form method="POST" action="{% url 'delete-member' group.id %}">
+          {% csrf_token %}
+          <input type="hidden" name="member_name" value="{{ member_data.name }}"/>
+          <button type="submit" class="btn btn-danger-outline btn-sm" onclick="return confirm('¿Quitar a {{ member_data.name }} del grupo?')">Quitar</button>
+        </form>
+      </div>
+    </div>
+    {% empty %}
+    <div class="empty-msg">Todavía no hay miembros. ¡Agregá uno arriba!</div>
+    {% endfor %}
   </div>
 
   {% if expenses %}
-  <h3 style="margin-top:20px;">Historial de gastos:</h3>
-  <ul style="padding-left:18px;">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">📋 Historial de gastos</div>
+    </div>
     {% for expense in expenses %}
-    <li style="margin:4px 0;font-size:14px;">
-      {% if expense.transaction_type == 'settlement' and expense.paid_to %}
-        {{ expense.paid_by }} pagó {{ expense.paid_to }} {{ expense.original_amount }} {{ expense.original_currency }}
-      {% else %}
-        {{ expense.paid_by }} pagó {{ expense.original_amount }} {{ expense.original_currency }}
-      {% endif %}
-      {% if expense.original_currency != group.currency %}
-        (= {{ expense.amount }} {{ group.currency }})
-      {% endif %}
-    </li>
+    <div class="history-item">
+      <span class="history-who">
+        {% if expense.transaction_type == 'settlement' and expense.paid_to %}
+          💸 {{ expense.paid_by }} → {{ expense.paid_to }}
+        {% else %}
+          💳 {{ expense.paid_by }}
+        {% endif %}
+      </span>
+      <span {% if expense.transaction_type == 'settlement' %}class="history-settlement"{% else %}class="history-amount"{% endif %}>
+        {% if expense.transaction_type == 'settlement' %}−{% endif %}
+        {{ expense.original_amount }} {{ expense.original_currency }}
+        {% if expense.original_currency != group.currency %}
+          <small style="color:#94a3b8;font-weight:400;">({{ expense.amount }} {{ group.currency }})</small>
+        {% endif %}
+      </span>
+    </div>
     {% endfor %}
-  </ul>
+  </div>
+  {% endif %}
+
+  {% if group.members and expenses %}
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">📊 Distribución de gastos</div>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="expenseChart"></canvas>
+    </div>
+  </div>
   {% endif %}
 </div>
 
-<div id="settlement-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:1000;justify-content:center;align-items:center;">
-  <div style="background:white;border-radius:10px;padding:28px;max-width:400px;box-shadow:0 4px 20px rgba(0,0,0,0.3);">
-    <h3 style="margin-top:0;">Realizar pago</h3>
-    <p id="settlement-info" style="color:#666;margin-bottom:16px;"></p>
+<div class="modal" id="settlement-modal">
+  <div class="modal-box">
+    <div class="modal-title">💸 Registrar pago</div>
+    <div class="modal-info" id="settlement-info"></div>
     <form method="POST" id="settlement-form">
       {% csrf_token %}
       <input type="hidden" name="settlement" value="1"/>
       <input type="hidden" name="paid_by" id="settlement-paid-by"/>
       <input type="hidden" name="paid_to" id="settlement-paid-to"/>
-      <div style="margin-bottom:16px;">
-        <label style="display:block;font-size:14px;font-weight:500;margin-bottom:4px;">Monto a pagar</label>
-        <input type="number" name="settlement_amount" id="settlement-amount" step="0.01" min="0.01" max="999999999.99" style="width:100%;border:1px solid #ddd;border-radius:5px;padding:8px;font-size:14px;box-sizing:border-box;" required/>
-      </div>
-      <div style="display:flex;gap:10px;">
-        <button type="submit" class="btn btn-primary" style="flex:1;">Pagar</button>
-        <button type="button" class="btn" style="flex:1;background:#95a5a6;" onclick="closeSettlementForm()">Cancelar</button>
+      <label class="modal-label">Monto a pagar</label>
+      <input type="number" name="settlement_amount" id="settlement-amount" class="modal-input" step="0.01" min="0.01" required/>
+      <div class="modal-actions">
+        <button type="submit" class="btn btn-primary" style="flex:1;">Confirmar pago</button>
+        <button type="button" class="btn btn-cancel" onclick="closeSettlementForm()">Cancelar</button>
       </div>
     </form>
   </div>
 </div>
 
 <script>
+const COLORS = ['#6366f1','#22c55e','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#f97316','#84cc16'];
+
+document.querySelectorAll('.member-avatar[data-idx]').forEach(el => {
+  el.style.background = COLORS[parseInt(el.dataset.idx) % COLORS.length];
+});
+
+{% if group.members and expenses %}
+const paidData = JSON.parse(document.getElementById('paid-data').textContent);
+const members = JSON.parse(document.getElementById('members-data').textContent);
+const vals = members.map(m => paidData[m] || 0);
+const total = vals.reduce((a, b) => a + b, 0);
+const currency = '{{ group.currency }}';
+
+if (total > 0) {
+  new Chart(document.getElementById('expenseChart'), {
+    type: 'doughnut',
+    data: {
+      labels: members,
+      datasets: [{
+        data: vals,
+        backgroundColor: COLORS.slice(0, members.length),
+        borderWidth: 3,
+        borderColor: '#fff',
+      }]
+    },
+    options: {
+      responsive: true,
+      cutout: '65%',
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { family: 'Inter', size: 12 }, padding: 14 } },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.label}: ${currency} ${ctx.parsed.toFixed(2)} (${(ctx.parsed/total*100).toFixed(1)}%)`
+          }
+        }
+      }
+    }
+  });
+}
+{% endif %}
+
 function showSettlementForm(paidBy, paidTo, maxAmount, currency) {
   document.getElementById('settlement-paid-by').value = paidBy;
   document.getElementById('settlement-paid-to').value = paidTo;
   document.getElementById('settlement-amount').max = maxAmount;
-  document.getElementById('settlement-info').textContent = `${paidBy} debe pagar hasta ${maxAmount} ${currency} a ${paidTo}`;
+  document.getElementById('settlement-info').textContent = `${paidBy} debe hasta ${currency} ${maxAmount} a ${paidTo}`;
   document.getElementById('settlement-modal').style.display = 'flex';
 }
-
 function closeSettlementForm() {
   document.getElementById('settlement-modal').style.display = 'none';
 }
-
-window.addEventListener('click', (e) => {
-  const modal = document.getElementById('settlement-modal');
-  if (e.target === modal) {
-    modal.style.display = 'none';
-  }
+window.addEventListener('click', e => {
+  if (e.target === document.getElementById('settlement-modal')) closeSettlementForm();
 });
 
 const nameEl = document.getElementById('group-name');
 const nameForm = document.getElementById('name-form');
-const nameInput = document.getElementById('name-input');
-
+const nameInput = document.getElementById('name-input-field');
 nameEl.addEventListener('click', () => {
   nameEl.style.display = 'none';
   nameForm.style.display = 'block';
   nameInput.style.display = 'inline-block';
-  nameInput.focus();
-  nameInput.select();
+  nameInput.focus(); nameInput.select();
 });
-
 nameInput.addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); nameForm.submit(); }
-  if (e.key === 'Escape') {
-    nameEl.style.display = 'inline-block';
-    nameForm.style.display = 'none';
-    nameInput.style.display = 'none';
-  }
+  if (e.key === 'Escape') { nameEl.style.display = ''; nameForm.style.display = 'none'; nameInput.style.display = 'none'; }
 });
-
 nameInput.addEventListener('blur', () => {
-  nameEl.style.display = 'inline-block';
+  nameEl.style.display = '';
   nameForm.style.display = 'none';
   nameInput.style.display = 'none';
 });
-
 </script>
 {% endblock content %}
