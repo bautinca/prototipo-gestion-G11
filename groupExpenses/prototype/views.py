@@ -119,12 +119,18 @@ def group(request, pk):
     cost_per_member = (group.total / len(group.members)) if group.members else Decimal('0')
     expenses = group.expense_set.all().order_by('-id')
 
+    paid_amounts = {}
+    for member in group.members:
+        bal = balances.get(member, Decimal('0'))
+        paid_amounts[member] = float(max(bal + cost_per_member, Decimal('0')))
+
     context = {
         'group': group,
         'cost_per_member': cost_per_member,
         'members_data': members_data,
         'expenses': expenses,
         'currency_choices': CURRENCY_CHOICES,
+        'paid_amounts': paid_amounts,
     }
     return render(request, './prototype/group.html', context)
 
@@ -134,14 +140,15 @@ def deleteMember(request, pk):
     if request.method == 'POST':
         member_name = request.POST.get('member_name', '').strip()
         if member_name and member_name in group.members:
-            has_expenses = group.expense_set.filter(paid_by=member_name).exists()
-            if not has_expenses:
+            debts, balances = calculate_debts(group)
+            has_pending = any(d['from'] == member_name or d['to'] == member_name for d in debts)
+            if has_pending:
+                messages.error(request, f'{member_name} tiene deudas pendientes. Debe estar al día antes de ser eliminado.')
+            else:
                 members = group.members
                 members.remove(member_name)
                 group.members = members
                 group.save()
-            else:
-                messages.error(request, f'No se puede eliminar a {member_name} porque tiene gastos registrados.')
     return redirect('group', pk=pk)
 
 
