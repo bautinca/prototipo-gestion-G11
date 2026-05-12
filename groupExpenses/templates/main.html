@@ -17,6 +17,12 @@
   </style>
 </head>
 <body>
+  {% if user.is_authenticated %}
+  <div style="background:white;border-bottom:1px solid #e2e8f0;padding:10px 24px;display:flex;justify-content:flex-end;align-items:center;gap:12px;font-size:13px;color:#64748b;">
+    <span>{{ user.username }}</span>
+    <a href="{% url 'logout' %}" style="color:#ef4444;font-weight:600;">Cerrar sesión</a>
+  </div>
+  {% endif %}
   {% if messages %}
   <div style="max-width:720px;margin:16px auto 0;padding:0 16px;">
     {% for message in messages %}

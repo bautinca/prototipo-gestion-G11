@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.auth.models import User
 from decimal import Decimal
 
 CURRENCY_CHOICES = [
@@ -8,6 +9,7 @@ CURRENCY_CHOICES = [
 ]
 
 class Group(models.Model):
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
     name = models.CharField(max_length=200)
     currency = models.CharField(max_length=3, choices=CURRENCY_CHOICES, default='ARS')
     members = models.JSONField(default=list)

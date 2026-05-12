@@ -1,0 +1,33 @@
+{% extends "main.html" %}
+{% block content %}
+<style>
+  .auth-wrap { max-width: 400px; margin: 80px auto; padding: 0 16px; }
+  .auth-card { background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); padding: 32px; }
+  .auth-title { font-size: 22px; font-weight: 700; color: #0f172a; margin: 0 0 24px; text-align: center; }
+  .auth-field { margin-bottom: 16px; }
+  .auth-field label { display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px; }
+  .auth-field input { width: 100%; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; font-family: inherit; outline: none; box-sizing: border-box; }
+  .auth-field input:focus { border-color: #6366f1; }
+  .btn-auth { width: 100%; background: #6366f1; color: white; border: none; padding: 11px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; }
+  .btn-auth:hover { background: #4f46e5; }
+  .auth-link { text-align: center; margin-top: 16px; font-size: 13px; color: #64748b; }
+</style>
+<div class="auth-wrap">
+  <div class="auth-card">
+    <p class="auth-title">💸 Crear cuenta</p>
+    <form method="POST">
+      {% csrf_token %}
+      <div class="auth-field">
+        <label>Usuario</label>
+        <input type="text" name="username" autocomplete="username" required>
+      </div>
+      <div class="auth-field">
+        <label>Contraseña</label>
+        <input type="password" name="password" autocomplete="new-password" required>
+      </div>
+      <button type="submit" class="btn-auth">Registrarse</button>
+    </form>
+    <p class="auth-link">¿Ya tenés cuenta? <a href="{% url 'login' %}">Iniciar sesión</a></p>
+  </div>
+</div>
+{% endblock content %}

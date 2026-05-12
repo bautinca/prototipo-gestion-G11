@@ -1,5 +1,8 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.models import User
+from django.contrib.auth.decorators import login_required
 from decimal import Decimal, InvalidOperation
 from .models import Group, Expense, CURRENCY_CHOICES
 from .forms import GroupForm
@@ -8,13 +11,15 @@ from .utils import calculate_debts
 MAX_AMOUNT = Decimal('999999999.99')
 
 
+@login_required
 def home(request):
-    groups = Group.objects.all()
+    groups = Group.objects.filter(owner=request.user)
     return render(request, './prototype/home.html', {'groups': groups})
 
 
+@login_required
 def group(request, pk):
-    group = get_object_or_404(Group, id=pk)
+    group = get_object_or_404(Group, id=pk, owner=request.user)
 
     if request.method == 'POST':
         if 'new_member' in request.POST:
@@ -135,8 +140,9 @@ def group(request, pk):
     return render(request, './prototype/group.html', context)
 
 
+@login_required
 def deleteMember(request, pk):
-    group = get_object_or_404(Group, id=pk)
+    group = get_object_or_404(Group, id=pk, owner=request.user)
     if request.method == 'POST':
         member_name = request.POST.get('member_name', '').strip()
         if member_name and member_name in group.members:
@@ -152,8 +158,9 @@ def deleteMember(request, pk):
     return redirect('group', pk=pk)
 
 
+@login_required
 def updateName(request, pk):
-    group = get_object_or_404(Group, id=pk)
+    group = get_object_or_404(Group, id=pk, owner=request.user)
     if request.method == 'POST':
         name = request.POST.get('name', '').strip()
         if name:
@@ -162,18 +169,22 @@ def updateName(request, pk):
     return redirect('group', pk=pk)
 
 
+@login_required
 def createGroup(request):
     form = GroupForm()
     if request.method == 'POST':
         form = GroupForm(request.POST)
         if form.is_valid():
-            form.save()
+            new_group = form.save(commit=False)
+            new_group.owner = request.user
+            new_group.save()
             return redirect('home')
     return render(request, './prototype/group_form.html', {'form': form})
 
 
+@login_required
 def updateGroup(request, pk):
-    group = get_object_or_404(Group, id=pk)
+    group = get_object_or_404(Group, id=pk, owner=request.user)
     old_currency = group.currency
     form = GroupForm(request.POST or None, instance=group)
 
@@ -201,3 +212,35 @@ def updateGroup(request, pk):
             return redirect('group', pk=pk)
 
     return render(request, './prototype/group_form.html', {'form': form, 'group': group})
+
+
+def register_view(request):
+    if request.method == 'POST':
+        username = request.POST.get('username', '').strip().lower()
+        password = request.POST.get('password', '')
+        if not username or not password:
+            messages.error(request, 'Completá todos los campos.')
+            return render(request, 'prototype/register.html')
+        if User.objects.filter(username=username).exists():
+            messages.error(request, 'Ese nombre de usuario ya existe.')
+            return render(request, 'prototype/register.html')
+        User.objects.create_user(username=username, password=password)
+        return redirect('login')
+    return render(request, 'prototype/register.html')
+
+
+def login_view(request):
+    if request.method == 'POST':
+        username = request.POST.get('username', '').strip().lower()
+        password = request.POST.get('password', '')
+        user = authenticate(request, username=username, password=password)
+        if user is not None:
+            login(request, user)
+            return redirect('home')
+        messages.error(request, 'Usuario o contraseña incorrectos.')
+    return render(request, 'prototype/login.html')
+
+
+def logout_view(request):
+    logout(request)
+    return redirect('login')
