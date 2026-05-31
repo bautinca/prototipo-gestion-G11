@@ -50,11 +50,9 @@
 
       {% if group %}
       <hr class="divider">
-      <input type="hidden" name="exchange_direction" id="exchange-direction" value="multiply"/>
-      <div class="exchange-box" id="exchange-rate-field">
-        <label id="exchange-rate-label"></label>
-        <input type="number" name="exchange_rate" id="exchange_rate" step="0.01" min="0" max="999999999.99" placeholder="Ej: 1000" style="margin-top:6px;"/>
-        <div class="exchange-preview" id="exchange-preview"></div>
+      <div class="exchange-box" style="display:block; padding: 18px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 20px;">
+        <strong>Conversión automática</strong>
+        <p style="font-size:13px; color:#64748b; margin: 8px 0 0;">La tasa de conversión se obtiene desde la tabla de monedas del sistema. No es necesario ingresarla manualmente.</p>
       </div>
       {% endif %}
 
@@ -65,46 +63,4 @@
   </div>
 </div>
 
-{% if group %}
-<script>
-const STRENGTH = { 'ARS': 1, 'EUR': 2, 'USD': 3 };
-const currencySelect = document.querySelector('[name=currency]');
-const originalCurrency = '{{ group.currency }}';
-const rateField = document.getElementById('exchange-rate-field');
-const rateLabel = document.getElementById('exchange-rate-label');
-const rateInput = document.getElementById('exchange_rate');
-const directionInput = document.getElementById('exchange-direction');
-const preview = document.getElementById('exchange-preview');
-const totalAmount = {{ group.total }};
-
-function updateUI() {
-  const newCurrency = currencySelect.value;
-  if (newCurrency === originalCurrency) { rateField.style.display = 'none'; return; }
-  rateField.style.display = 'block';
-  const origStrong = (STRENGTH[originalCurrency] || 1) >= (STRENGTH[newCurrency] || 1);
-  if (origStrong) {
-    rateLabel.textContent = `1 ${originalCurrency} = ¿cuántos ${newCurrency}?`;
-    directionInput.value = 'multiply';
-  } else {
-    rateLabel.textContent = `1 ${newCurrency} = ¿cuántos ${originalCurrency}?`;
-    directionInput.value = 'divide';
-  }
-  updatePreview();
-}
-
-function updatePreview() {
-  const rate = parseFloat(rateInput.value);
-  if (rate > 0 && totalAmount > 0) {
-    const newCurrency = currencySelect.value;
-    const converted = directionInput.value === 'divide' ? totalAmount / rate : totalAmount * rate;
-    preview.textContent = `Total: ${totalAmount} ${originalCurrency} → ${converted.toFixed(2)} ${newCurrency}`;
-  } else {
-    preview.textContent = '';
-  }
-}
-
-currencySelect.addEventListener('change', updateUI);
-rateInput.addEventListener('input', updatePreview);
-</script>
-{% endif %}
 {% endblock content %}

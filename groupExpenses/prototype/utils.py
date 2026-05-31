@@ -1,6 +1,35 @@
+import csv
 from decimal import Decimal, ROUND_HALF_UP
+from pathlib import Path
 
 EPSILON = Decimal('0.01')
+CONVERSION_RATES_CSV = Path(__file__).resolve().parent / 'conversion_rates.csv'
+
+
+def load_conversion_rates():
+    rates = {}
+    if not CONVERSION_RATES_CSV.exists():
+        return rates
+
+    with CONVERSION_RATES_CSV.open(newline='', encoding='utf-8') as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            from_currency = row.get('from')
+            to_currency = row.get('to')
+            rate = row.get('rate')
+            if from_currency and to_currency and rate:
+                try:
+                    rates.setdefault(from_currency, {})[to_currency] = Decimal(rate)
+                except Exception:
+                    continue
+    return rates
+
+
+def get_conversion_rate(from_currency, to_currency):
+    if from_currency == to_currency:
+        return Decimal('1')
+    rates = load_conversion_rates()
+    return rates.get(from_currency, {}).get(to_currency)
 
 
 def calculate_debts(group):

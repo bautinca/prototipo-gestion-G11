@@ -4,6 +4,7 @@
   .auth-wrap { max-width: 400px; margin: 80px auto; padding: 0 16px; }
   .auth-card { background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); padding: 32px; }
   .auth-title { font-size: 22px; font-weight: 700; color: #0f172a; margin: 0 0 24px; text-align: center; }
+  .btn-info { background:#eef2ff;border:1px solid #c7d2fe;color:#1e3a8a;padding:6px 10px;border-radius:8px;cursor:pointer;font-weight:600; }
   .auth-field { margin-bottom: 16px; }
   .auth-field label { display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px; }
   .auth-field input { width: 100%; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; font-family: inherit; outline: none; box-sizing: border-box; }
@@ -14,7 +15,10 @@
 </style>
 <div class="auth-wrap">
   <div class="auth-card">
-    <p class="auth-title">💸 Iniciar sesión</p>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <p class="auth-title" style="margin:0;">💸 Iniciar sesión</p>
+      <button type="button" class="btn-info">Info</button>
+    </div>
     <form method="POST">
       {% csrf_token %}
       <div class="auth-field">

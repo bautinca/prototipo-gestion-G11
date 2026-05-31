@@ -8,7 +8,7 @@ from django.utils import timezone
 from decimal import Decimal, InvalidOperation
 from .models import Group, Expense, CURRENCY_CHOICES, GroupInvitation
 from .forms import GroupForm
-from .utils import calculate_debts
+from .utils import calculate_debts, get_conversion_rate
 
 MAX_AMOUNT = Decimal('999999999.99')
 
@@ -289,24 +289,27 @@ def updateGroup(request, pk):
     if request.method == 'POST':
         if form.is_valid():
             new_currency = form.cleaned_data['currency']
+            conversion_message = None
             if new_currency != old_currency:
-                exchange_rate_str = request.POST.get('exchange_rate', '').strip()
-                if exchange_rate_str:
-                    rate = Decimal(exchange_rate_str)
-                    direction = request.POST.get('exchange_direction', 'multiply')
-                    for expense in group.expense_set.all():
-                        if direction == 'divide':
-                            new_amount = expense.amount / rate
-                        else:
-                            new_amount = expense.amount * rate
-                        
-                        if new_amount > MAX_AMOUNT:
-                            messages.error(request, 'La conversión de moneda resultaría en montos demasiado altos. Operación cancelada.')
-                            return redirect('update-group', pk=pk)
-                        
-                        expense.amount = new_amount
-                        expense.save()
+                rate = get_conversion_rate(old_currency, new_currency)
+                if rate is None:
+                    messages.error(request, 'No hay una tasa de conversión disponible para estas monedas.')
+                    return redirect('update-group', pk=pk)
+                for expense in group.expense_set.all():
+                    new_amount = (expense.amount * rate).quantize(Decimal('0.01'))
+                    if new_amount > MAX_AMOUNT:
+                        messages.error(request, 'La conversión de moneda resultaría en montos demasiado altos. Operación cancelada.')
+                        return redirect('update-group', pk=pk)
+                    expense.amount = new_amount
+                    expense.original_amount = new_amount
+                    expense.original_currency = new_currency
+                    expense.save()
+                conversion_message = f'Conversión a {new_currency} aplicada con tasa {rate}.'
             form.save()
+            if conversion_message:
+                messages.success(request, conversion_message)
+            else:
+                messages.success(request, 'Grupo actualizado correctamente.')
             return redirect('group', pk=pk)
 
     return render(request, './prototype/group_form.html', {'form': form, 'group': group})
@@ -342,3 +345,8 @@ def login_view(request):
 def logout_view(request):
     logout(request)
     return redirect('login')
+
+
+def tutorial(request):
+    """Renderiza la página de tutorial explicativa (pública)."""
+    return render(request, 'prototype/tutorial.html')

@@ -1,0 +1,103 @@
+{% extends "main.html" %}
+{% block content %}
+<style>
+	.tutorial-wrap { max-width:900px;margin:36px auto;padding:0 16px; }
+	.card { background:white;border-radius:12px;padding:20px;border:1px solid #edf2f7;margin-bottom:18px; }
+	h1 { margin:0 0 8px;font-size:24px;color:#0f172a }
+	p { color:#475569 }
+	.steps { display:grid;grid-template-columns:1fr;gap:12px;margin-top:12px }
+	.step { padding:12px;border-radius:8px;background:#f8fafc;border:1px solid #e6eef8 }
+	.step h3 { margin:0 0 6px;font-size:16px }
+	.small-svg { width:160px;height:90px;display:inline-block;vertical-align:middle;margin-right:12px }
+	.toggle-btn { background:#eef2ff;border:1px solid #c7d2fe;color:#1e3a8a;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600 }
+	.example { background:#fff8ed;border:1px solid #fde1c7;padding:10px;border-radius:8px;color:#92400e }
+</style>
+
+<div class="tutorial-wrap">
+	<div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
+		<button class="btn-info" data-action="goto" data-href="/" style="background:#eef2ff;border:1px solid #c7d2fe;color:#1e3a8a;padding:6px 10px;border-radius:8px;cursor:pointer;font-weight:600;">Cerrar</button>
+	</div>
+	<div class="card">
+		<h1>Cómo funciona la distribución de gastos</h1>
+		<p>Esta guía describe, con lenguaje simple y ejemplos, el mecanismo que usa la aplicación para repartir gastos entre los miembros de un grupo y reducir las deudas entre ellos.</p>
+		<div style="margin-top:12px;display:flex;gap:12px;align-items:center;">
+			<button id="show-details" class="toggle-btn">Mostrar detalles del mecanismo</button>
+			<a href="#" onclick="document.getElementById('calculator').scrollIntoView();return false;" style="color:#6366f1;font-weight:600">Ir al ejemplo rápido</a>
+		</div>
+		<div id="details" style="display:none;margin-top:12px">
+			<div class="steps">
+				<div class="step">
+					<h3>1) Registrar gastos</h3>
+					<p>Cuando alguien paga algo para el grupo, registramos quién pagó, cuánto y qué miembros participan en ese gasto.</p>
+				</div>
+				<div class="step">
+					<h3>2) Dividir el monto</h3>
+					<p>El total se divide entre los participantes del gasto (por ejemplo, un almuerzo entre 3 → cada uno paga 1/3). El autor del gasto suele haber pagado toda la suma, así que los otros pasan a deberle su parte.</p>
+				</div>
+				<div class="step">
+					<h3>3) Calcular saldos netos</h3>
+					<p>Sumamos por persona lo que los demás le deben y restamos lo que ella debe: obtenemos un saldo neto. Saldo positivo = eres acreedor; saldo negativo = eres deudor.</p>
+				</div>
+				<div class="step">
+					<h3>4) Netear las deudas (cancelación mínima)</h3>
+					<p>Para evitar múltiples transferencias, emparejamos a quienes más deben con quienes más deben recibir. Se calculan pagos directos hasta que los saldos quedan en cero o cercanos a cero.</p>
+				</div>
+				<div class="step">
+					<h3>5) Registrar pagos</h3>
+					<p>Cuando un miembro realiza un pago (por ejemplo, A paga a B), actualizamos los saldos y las deudas netas se recalculan.</p>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="card" id="calculator">
+		<h2 style="font-size:18px;margin:0 0 8px">Ejemplo rápido</h2>
+		<div style="display:flex;gap:12px;align-items:center;">
+			<svg class="small-svg" viewBox="0 0 220 120" xmlns="http://www.w3.org/2000/svg">
+				<circle cx="30" cy="60" r="14" fill="#eef2ff" stroke="#3b82f6" stroke-width="2" />
+				<text x="30" y="64" font-size="10" text-anchor="middle" fill="#1d4ed8" font-weight="700">A</text>
+				<circle cx="110" cy="30" r="14" fill="#eef2ff" stroke="#3b82f6" stroke-width="2" />
+				<text x="110" y="34" font-size="10" text-anchor="middle" fill="#1d4ed8" font-weight="700">B</text>
+				<circle cx="190" cy="60" r="14" fill="#eef2ff" stroke="#3b82f6" stroke-width="2" />
+				<text x="190" y="64" font-size="10" text-anchor="middle" fill="#1d4ed8" font-weight="700">C</text>
+				<line x1="45" y1="58" x2="95" y2="36" stroke="#1d4ed8" stroke-width="4" marker-end="url(#m)" />
+				<line x1="125" y1="36" x2="175" y2="58" stroke="#1d4ed8" stroke-width="4" marker-end="url(#m)" />
+			</svg>
+			<div>
+				<p style="margin:0 0 6px">Supongamos: B paga 300 entre A, B y C → cada uno debe 100 a B. Saldo neto inicial:</p>
+				<ul style="margin:0 0 6px 18px;color:#475569">
+					<li>A: -100</li>
+					<li>B: +200 (ha pagado 300, le corresponden 100)</li>
+					<li>C: -100</li>
+				</ul>
+				<div class="example">Solución práctica: A y C deben 100 a B (dos transferencias), o el sistema propone netear con pagos mínimos según las operaciones posteriores.</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="card">
+		<h2 style="font-size:18px;margin:0 0 8px">Consejos de uso</h2>
+		<ul style="margin:0 0 0 18px;color:#475569">
+			<li>Mantené los participantes correctos al registrar un gasto para que el reparto sea justo.</li>
+			<li>Usá la función de pagos dentro del grupo para reducir saldos netos y simplificar transferencias.</li>
+			<li>Si hay muchos movimientos, el neteo automático reduce el número total de pagos sugeridos.</li>
+		</ul>
+	</div>
+</div>
+
+<script>
+	document.getElementById('show-details')?.addEventListener('click', function(){
+		const d = document.getElementById('details');
+		if(!d) return;
+		if(d.style.display === 'none'){
+			d.style.display = 'block';
+			this.textContent = 'Ocultar detalles del mecanismo';
+		} else {
+			d.style.display = 'none';
+			this.textContent = 'Mostrar detalles del mecanismo';
+		}
+	});
+</script>
+
+{% endblock %}
+

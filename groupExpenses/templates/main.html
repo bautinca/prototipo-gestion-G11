@@ -22,9 +22,12 @@
   </style>
 </head>
 <body>
+  <!-- Top bar removed per design: Tutorial moved to authenticated header -->
   {% if user.is_authenticated %}
   <div style="background:white;border-bottom:1px solid #e2e8f0;padding:10px 24px;display:flex;justify-content:flex-end;align-items:center;gap:12px;font-size:13px;color:#64748b;">
-    <span>{{ user.username }}</span>
+    <button class="btn-info" data-action="goto" data-href="{% url 'tutorial' %}" style="background:#eef2ff;border:1px solid #c7d2fe;color:#1e3a8a;padding:6px 10px;border-radius:8px;cursor:pointer;font-weight:600;">Tutorial</button>
+    <button class="btn-info" data-action="info" style="background:#eef2ff;border:1px solid #c7d2fe;color:#1e3a8a;padding:6px 10px;border-radius:8px;cursor:pointer;font-weight:600;">Info</button>
+    <span style="margin-left:6px;">{{ user.username }}</span>
     <a href="{% url 'logout' %}" style="color:#ef4444;font-weight:600;">Cerrar sesión</a>
   </div>
   {% endif %}
@@ -39,4 +42,38 @@
   {% endif %}
   {% block content %}{% endblock %}
 </body>
+<div id="info-modal" style="display:none;position:fixed;inset:0;align-items:center;justify-content:center;z-index:1200;">
+  <div style="position:absolute;inset:0;background:rgba(2,6,23,0.6);"></div>
+  <div style="background:white;border-radius:12px;box-shadow:0 20px 50px rgba(2,6,23,0.3);max-width:640px;width:90%;padding:24px;position:relative;z-index:1201;">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px;">
+      <h3 style="margin:0;font-size:18px;color:#0f172a;">¿Para qué sirve este sitio?</h3>
+      <button id="info-close" style="background:#fff;border:1px solid #e2e8f0;padding:6px 8px;border-radius:8px;cursor:pointer;">Cerrar</button>
+    </div>
+    <p style="margin:0;color:#475569;line-height:1.6;">Este sitio permite crear grupos y registrar gastos compartidos. Su propósito es distribuir los pagos entre los integrantes del mismo grupo, calcular deudas netas, y facilitar pagos entre miembros para saldar deudas de forma sencilla.</p>
+  </div>
+</div>
+<script>
+  // Info modal open/close handlers
+  document.addEventListener('click', (e) => {
+    const target = e.target;
+    const btn = target.closest('.btn-info');
+    if (btn) {
+      const action = btn.dataset.action;
+      if (action === 'info') {
+        const modal = document.getElementById('info-modal');
+        if (modal) modal.style.display = 'flex';
+        return;
+      }
+      if (action === 'goto') {
+        const href = btn.dataset.href;
+        if (href) window.location.href = href;
+        return;
+      }
+    }
+    if (target.id === 'info-close' || target.id === 'info-modal') {
+      const modal = document.getElementById('info-modal');
+      if (modal) modal.style.display = 'none';
+    }
+  });
+</script>
 </html>

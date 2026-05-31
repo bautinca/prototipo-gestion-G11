@@ -1,4 +1,5 @@
 from django.test import TestCase, Client
+from django.contrib.auth.models import User
 from decimal import Decimal
 from .models import Group, Expense
 from .utils import calculate_debts
@@ -6,9 +7,10 @@ from .utils import calculate_debts
 
 class GroupModelTests(TestCase):
     def setUp(self):
+        self.user_a = User.objects.create_user(username='A', password='pass')
+        self.user_b = User.objects.create_user(username='B', password='pass')
         self.group = Group.objects.create(name='Test', currency='ARS')
-        self.group.members = ['A', 'B']
-        self.group.save()
+        self.group.members.add(self.user_a, self.user_b)
 
     def test_total_is_zero_with_no_expenses(self):
         self.assertEqual(self.group.total, Decimal('0'))
@@ -51,9 +53,11 @@ class GroupModelTests(TestCase):
 
 class DebtCalculationTests(TestCase):
     def setUp(self):
+        self.user_a = User.objects.create_user(username='A', password='pass')
+        self.user_b = User.objects.create_user(username='B', password='pass')
+        self.user_c = User.objects.create_user(username='C', password='pass')
         self.group = Group.objects.create(name='Deudas', currency='ARS')
-        self.group.members = ['A', 'B', 'C']
-        self.group.save()
+        self.group.members.add(self.user_a, self.user_b, self.user_c)
 
     def test_no_expenses_returns_empty(self):
         debts, balances = calculate_debts(self.group)
@@ -86,8 +90,7 @@ class DebtCalculationTests(TestCase):
             self.assertAlmostEqual(float(balances[m]), 0, places=1)
 
     def test_no_members_returns_empty(self):
-        self.group.members = []
-        self.group.save()
+        self.group.members.clear()
         debts, balances = calculate_debts(self.group)
         self.assertEqual(debts, [])
         self.assertEqual(balances, {})
@@ -96,9 +99,11 @@ class DebtCalculationTests(TestCase):
 class GroupViewTests(TestCase):
     def setUp(self):
         self.client = Client()
-        self.group = Group.objects.create(name='Viaje', currency='ARS')
-        self.group.members = ['A', 'B']
-        self.group.save()
+        self.user_a = User.objects.create_user(username='A', password='pass')
+        self.user_b = User.objects.create_user(username='B', password='pass')
+        self.client.force_login(self.user_a)
+        self.group = Group.objects.create(name='Viaje', currency='ARS', owner=self.user_a)
+        self.group.members.add(self.user_a, self.user_b)
 
     def test_add_expense_creates_expense_object(self):
         self.client.post(f'/group/{self.group.id}/', {
@@ -160,27 +165,38 @@ class GroupViewTests(TestCase):
         self.group.refresh_from_db()
         self.assertEqual(self.group.name, 'Viaje')
 
+    def test_update_group_name_without_currency_change(self):
+        response = self.client.post(f'/update-group/{self.group.id}/', {
+            'name': 'Viaje 2026',
+            'currency': 'ARS',
+        }, follow=True)
+        self.group.refresh_from_db()
+        self.assertEqual(self.group.name, 'Viaje 2026')
+        self.assertEqual(self.group.currency, 'ARS')
+        self.assertContains(response, 'Grupo actualizado correctamente.')
+
     def test_delete_group(self):
         group_id = self.group.id
         self.client.post(f'/group/{group_id}/', {'delete_group': '1'})
         self.assertEqual(Group.objects.filter(id=group_id).count(), 0)
 
     def test_group_currency_change_reconverts_expenses(self):
-        group_usd = Group.objects.create(name='USD Group', currency='USD')
-        group_usd.members = ['A']
-        group_usd.save()
+        usd_user = User.objects.create_user(username='USD_A', password='pass')
+        self.client.force_login(usd_user)
+        group_usd = Group.objects.create(name='USD Group', currency='USD', owner=usd_user)
+        group_usd.members.add(usd_user)
         Expense.objects.create(
-            group=group_usd, paid_by='A',
+            group=group_usd, paid_by='USD_A',
             amount=Decimal('100'), original_amount=Decimal('100'),
             original_currency='USD'
         )
         self.client.post(f'/update-group/{group_usd.id}/', {
             'name': 'USD Group',
             'currency': 'ARS',
-            'exchange_rate': '1000',
         })
+        group_usd.refresh_from_db()
         expense = group_usd.expense_set.first()
-        self.assertEqual(expense.amount, Decimal('100000'))
+        self.assertEqual(expense.amount, Decimal('10000'))
 
     def test_create_group_empty_name_fails(self):
         response = self.client.post('/create-group/', {
