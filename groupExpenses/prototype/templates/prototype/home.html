@@ -13,6 +13,7 @@
   .group-link { font-size: 15px; font-weight: 600; color: #0f172a; display: flex; align-items: center; gap: 10px; }
   .group-link:hover { color: #6366f1; text-decoration: none; }
   .group-dot { width: 8px; height: 8px; border-radius: 50%; background: #6366f1; flex-shrink: 0; }
+  .group-admin-badge { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 999px; background: #fde68a; color: #b45309; font-size: 14px; font-weight: 700; border: 1px solid #fbbf24; }
   .btn-del { background: none; border: 1px solid #fca5a5; color: #ef4444; padding: 5px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; font-weight: 500; font-family: inherit; transition: background 0.15s; }
   .btn-del:hover { background: #fef2f2; }
   .empty { text-align: center; padding: 56px 20px; color: #94a3b8; }
@@ -25,18 +26,50 @@
     <h1>💸 Mis grupos</h1>
     <a href="{% url 'create-group' %}" class="btn-create">+ Nuevo grupo</a>
   </div>
+  {% if pending_invitations %}
+  <div class="card" style="margin-bottom: 18px;">
+    {% for invitation in pending_invitations %}
+    <div class="group-item">
+      <div>
+        <div class="group-link" style="gap: 8px;">
+          <span class="group-dot"></span>
+          Invitación a <strong>{{ invitation.group.name }}</strong>
+        </div>
+        <div style="font-size:13px; color:#64748b; margin-top:4px;">Enviada por {{ invitation.invited_by.username }}</div>
+      </div>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <form method="POST" action="{% url 'respond-invitation' invitation.id %}">
+          {% csrf_token %}
+          <input type="hidden" name="response" value="accept"/>
+          <button type="submit" class="btn-create" style="padding:6px 12px; font-size:12px;">Aceptar</button>
+        </form>
+        <form method="POST" action="{% url 'respond-invitation' invitation.id %}">
+          {% csrf_token %}
+          <input type="hidden" name="response" value="decline"/>
+          <button type="submit" class="btn-del" style="padding:6px 12px; font-size:12px;">Rechazar</button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
   <div class="card">
     {% for group in groups %}
     <div class="group-item">
       <a href="{% url 'group' group.id %}" class="group-link">
         <span class="group-dot"></span>
         {{ group.name }}
+        {% if request.user == group.owner %}
+        <span class="group-admin-badge" title="Administrador">👑</span>
+        {% endif %}
       </a>
+      {% if request.user == group.owner %}
       <form method="POST" action="{% url 'group' group.id %}" onsubmit="return confirm('¿Eliminar {{ group.name }}?')">
         {% csrf_token %}
         <input type="hidden" name="delete_group" value="1"/>
         <button type="submit" class="btn-del">Eliminar</button>
       </form>
+      {% endif %}
     </div>
     {% empty %}
     <div class="empty">

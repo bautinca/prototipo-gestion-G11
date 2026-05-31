@@ -14,6 +14,11 @@
     body { margin: 0; font-family: 'Inter', system-ui, sans-serif; background: #f1f5f9; color: #0f172a; }
     a { color: #6366f1; text-decoration: none; }
     a:hover { text-decoration: underline; }
+    .message { padding: 12px 16px; border-radius: 8px; margin-bottom: 8px; font-size: 14px; font-weight: 500; }
+    .message.info { background: #f8fafc; border: 1px solid #cbd5e1; color: #475569; }
+    .message.success { background: #dcfce7; border: 1px solid #22c55e; color: #166534; }
+    .message.error { background: #fee2e2; border: 1px solid #ef4444; color: #b91c1c; }
+    .message.warning { background: #ffedd5; border: 1px solid #f97316; color: #c2410c; }
   </style>
 </head>
 <body>
@@ -26,7 +31,7 @@
   {% if messages %}
   <div style="max-width:720px;margin:16px auto 0;padding:0 16px;">
     {% for message in messages %}
-    <div style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;padding:12px 16px;border-radius:8px;margin-bottom:8px;font-size:14px;font-weight:500;">
+    <div class="message {{ message.tags }}">
       {{ message }}
     </div>
     {% endfor %}

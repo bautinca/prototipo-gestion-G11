@@ -8,6 +8,7 @@ urlpatterns = [
     path('group/<str:pk>/update-name/', views.updateName, name='update-name'),
     path('create-group/', views.createGroup, name='create-group'),
     path('update-group/<str:pk>/', views.updateGroup, name='update-group'),
+    path('invitation/<int:pk>/respond/', views.respondInvitation, name='respond-invitation'),
     path('register/', views.register_view, name='register'),
     path('login/', views.login_view, name='login'),
     path('logout/', views.logout_view, name='logout'),

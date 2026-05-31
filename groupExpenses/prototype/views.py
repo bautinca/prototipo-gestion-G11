@@ -1,10 +1,12 @@
+from django.db.models import Q
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
+from django.utils import timezone
 from decimal import Decimal, InvalidOperation
-from .models import Group, Expense, CURRENCY_CHOICES
+from .models import Group, Expense, CURRENCY_CHOICES, GroupInvitation
 from .forms import GroupForm
 from .utils import calculate_debts
 
@@ -13,22 +15,54 @@ MAX_AMOUNT = Decimal('999999999.99')
 
 @login_required
 def home(request):
-    groups = Group.objects.filter(owner=request.user)
-    return render(request, './prototype/home.html', {'groups': groups})
+    groups = Group.objects.filter(Q(owner=request.user) | Q(members=request.user)).distinct()
+    pending_invitations = GroupInvitation.objects.filter(invited_user=request.user, status='pending').select_related('group', 'invited_by')
+    return render(request, './prototype/home.html', {'groups': groups, 'pending_invitations': pending_invitations})
 
 
 @login_required
 def group(request, pk):
-    group = get_object_or_404(Group, id=pk, owner=request.user)
+    group = get_object_or_404(Group, id=pk)
+    is_admin = request.user == group.owner
+    if not (is_admin or group.members.filter(id=request.user.id).exists()):
+        return redirect('home')
 
     if request.method == 'POST':
         if 'new_member' in request.POST:
+            if not is_admin:
+                messages.error(request, 'Solo el administrador puede agregar miembros al grupo.')
+                return redirect('group', pk=pk)
             new_member = request.POST.get('new_member', '').strip()
             if new_member:
-                members = group.members
-                members.append(new_member)
-                group.members = members
-                group.save()
+                try:
+                    member_user = User.objects.get(username__iexact=new_member)
+                except User.DoesNotExist:
+                    messages.error(request, 'El usuario debe estar registrado para ser agregado al grupo.')
+                    return redirect('group', pk=pk)
+
+                if group.members.filter(id=member_user.id).exists():
+                    messages.error(request, 'Ese usuario ya es miembro del grupo.')
+                    return redirect('group', pk=pk)
+
+                invitation, created = GroupInvitation.objects.get_or_create(
+                    group=group,
+                    invited_user=member_user,
+                    defaults={'invited_by': request.user}
+                )
+                if not created:
+                    if invitation.status == 'pending':
+                        messages.info(request, 'Ya existe una invitación pendiente para este usuario.')
+                    elif invitation.status == 'accepted':
+                        messages.error(request, 'Ese usuario ya aceptó su invitación y es miembro del grupo.')
+                    else:
+                        invitation.status = 'pending'
+                        invitation.invited_by = request.user
+                        invitation.responded = None
+                        invitation.save()
+                        messages.info(request, 'Invitación reenviada al usuario.')
+                    return redirect('group', pk=pk)
+
+                messages.info(request, 'Invitación enviada correctamente.')
             return redirect('group', pk=pk)
 
         elif 'settlement' in request.POST:
@@ -36,9 +70,12 @@ def group(request, pk):
             paid_to = request.POST.get('paid_to', '').strip()
             amount_str = request.POST.get('settlement_amount', '').strip()
 
-            if paid_by and paid_to and paid_by != paid_to and amount_str and group.members:
-                if paid_by not in group.members or paid_to not in group.members:
+            if paid_by and paid_to and paid_by != paid_to and amount_str and group.members.exists():
+                if not group.members.filter(username__iexact=paid_by).exists() or not group.members.filter(username__iexact=paid_to).exists():
                     messages.error(request, 'El miembro pagador y el receptor deben ser parte del grupo.')
+                    return redirect('group', pk=pk)
+                if not is_admin and paid_by != request.user.username:
+                    messages.error(request, 'Solo el administrador puede registrar un pago en nombre de otro miembro.')
                     return redirect('group', pk=pk)
                 try:
                     original_amount = Decimal(amount_str)
@@ -78,7 +115,13 @@ def group(request, pk):
             paid_by = request.POST.get('paid_by', '').strip()
             amount_str = request.POST.get('expense', '').strip()
 
-            if paid_by and amount_str and group.members:
+            if paid_by and amount_str and group.members.exists():
+                if not group.members.filter(username__iexact=paid_by).exists():
+                    messages.error(request, 'El miembro pagador debe ser parte del grupo.')
+                    return redirect('group', pk=pk)
+                if not is_admin and paid_by != request.user.username:
+                    messages.error(request, 'Solo el administrador puede registrar gastos en nombre de otro miembro.')
+                    return redirect('group', pk=pk)
                 try:
                     original_amount = Decimal(amount_str)
                 except InvalidOperation:
@@ -98,36 +141,62 @@ def group(request, pk):
                     amount=original_amount,
                     original_amount=original_amount,
                     original_currency=group.currency,
+                    participants=[member.username for member in group.members.all()],
                 )
             return redirect('group', pk=pk)
 
         elif 'delete_group' in request.POST:
-            group.delete()
-            return redirect('home')
+            if request.user == group.owner:
+                group.delete()
+                return redirect('home')
+            return redirect('group', pk=pk)
 
         return redirect('group', pk=pk)
 
     debts, balances = calculate_debts(group)
 
     members_data = []
-    for member in group.members:
-        balance = balances.get(member, Decimal('0'))
-        if balance > Decimal('0.01'):
-            status = {'type': 'cobrar', 'amount': balance}
-        elif balance < Decimal('-0.01'):
-            member_debts = [d for d in debts if d['from'] == member]
+    for member in group.members.all():
+        member_debts = [d for d in debts if d['from'] == member.username]
+        if member_debts:
             status = {'type': 'debe', 'debts': member_debts}
         else:
             status = {'type': 'al_dia'}
-        members_data.append({'name': member, 'status': status})
+        members_data.append({'name': member.username, 'status': status})
 
-    cost_per_member = (group.total / len(group.members)) if group.members else Decimal('0')
+    cost_per_member = (group.total / group.members.count()) if group.members.exists() else Decimal('0')
     expenses = group.expense_set.all().order_by('-id')
 
-    paid_amounts = {}
-    for member in group.members:
-        bal = balances.get(member, Decimal('0'))
-        paid_amounts[member] = float(max(bal + cost_per_member, Decimal('0')))
+    debt_amounts = {}
+    members_usernames = []
+    for member in group.members.all():
+        member_username = member.username
+        members_usernames.append(member_username)
+        debt_total = sum(
+            (d['amount'] for d in debts if d['from'] == member_username),
+            Decimal('0')
+        )
+        debt_amounts[member_username] = float(debt_total)
+
+    # Calcular aportes: suma de todos los gastos (transaction_type='expense') pagados por cada miembro
+    contribution_amounts = {m: 0.0 for m in members_usernames}
+    for exp in group.expense_set.filter(transaction_type='expense'):
+        payer = exp.paid_by
+        if payer in contribution_amounts:
+            # usar exp.amount (ya en la moneda del grupo) como aportación
+            try:
+                contribution_amounts[payer] += float(exp.amount)
+            except Exception:
+                # en caso de datos inesperados, saltar
+                continue
+
+    # Calcular el pozo acumulado (suma de todos los gastos, no incluye settlements)
+    total_pooled = 0.0
+    for exp in group.expense_set.filter(transaction_type='expense'):
+        try:
+            total_pooled += float(exp.amount)
+        except Exception:
+            continue
 
     context = {
         'group': group,
@@ -135,9 +204,34 @@ def group(request, pk):
         'members_data': members_data,
         'expenses': expenses,
         'currency_choices': CURRENCY_CHOICES,
-        'paid_amounts': paid_amounts,
+        'debt_amounts': debt_amounts,
+        'members_usernames': members_usernames,
+        'members_count': group.members.count(),
+        'contribution_amounts': contribution_amounts,
+        'total_pooled': total_pooled,
+        'is_admin': is_admin,
     }
     return render(request, './prototype/group.html', context)
+
+
+@login_required
+def respondInvitation(request, pk):
+    invitation = get_object_or_404(GroupInvitation, id=pk, invited_user=request.user)
+    if request.method == 'POST':
+        response = request.POST.get('response')
+        if response == 'accept':
+            invitation.status = 'accepted'
+            invitation.responded = timezone.now()
+            invitation.save()
+            if not invitation.group.members.filter(id=request.user.id).exists():
+                invitation.group.members.add(request.user)
+            messages.success(request, f'Has aceptado la invitación al grupo {invitation.group.name}.')
+        elif response == 'decline':
+            invitation.status = 'declined'
+            invitation.responded = timezone.now()
+            invitation.save()
+            messages.error(request, f'Has rechazado la invitación al grupo {invitation.group.name}.')
+    return redirect('home')
 
 
 @login_required
@@ -145,16 +239,19 @@ def deleteMember(request, pk):
     group = get_object_or_404(Group, id=pk, owner=request.user)
     if request.method == 'POST':
         member_name = request.POST.get('member_name', '').strip()
-        if member_name and member_name in group.members:
-            debts, balances = calculate_debts(group)
-            has_pending = any(d['from'] == member_name or d['to'] == member_name for d in debts)
-            if has_pending:
-                messages.error(request, f'{member_name} tiene deudas pendientes. Debe estar al día antes de ser eliminado.')
-            else:
-                members = group.members
-                members.remove(member_name)
-                group.members = members
-                group.save()
+        if member_name:
+            try:
+                member_user = User.objects.get(username__iexact=member_name)
+            except User.DoesNotExist:
+                member_user = None
+
+            if member_user and group.members.filter(id=member_user.id).exists():
+                debts, balances = calculate_debts(group)
+                has_pending = any(d['from'] == member_user.username or d['to'] == member_user.username for d in debts)
+                if has_pending:
+                    messages.error(request, f'{member_user.username} tiene deudas pendientes. Debe estar al día antes de ser eliminado.')
+                else:
+                    group.members.remove(member_user)
     return redirect('group', pk=pk)
 
 
@@ -178,6 +275,7 @@ def createGroup(request):
             new_group = form.save(commit=False)
             new_group.owner = request.user
             new_group.save()
+            new_group.members.add(request.user)
             return redirect('home')
     return render(request, './prototype/group_form.html', {'form': form})
 

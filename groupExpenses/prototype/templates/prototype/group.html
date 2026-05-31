@@ -14,6 +14,7 @@
   .group-title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
   .group-title { font-size: 28px; font-weight: 700; color: #0f172a; cursor: pointer; border-bottom: 2px dashed #e2e8f0; padding-bottom: 2px; display: inline-block; }
   .group-title:hover { border-color: #6366f1; color: #6366f1; }
+  .admin-badge { display: inline-flex; align-items: center; justify-content: center; background: #fef3c7; color: #b45309; font-size: 12px; font-weight: 700; border-radius: 999px; padding: 4px 10px; }
   .currency-badge { background: #ede9fe; color: #6d28d9; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 20px; }
   #name-input-field { font-size: 24px; font-weight: 700; border: 2px solid #6366f1; border-radius: 8px; padding: 4px 10px; display: none; font-family: inherit; outline: none; color: #0f172a; }
   .group-meta { font-size: 13px; color: #94a3b8; }
@@ -24,8 +25,14 @@
   .stat-label { font-size: 11px; color: #94a3b8; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.05em; }
 
   .card { background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); margin-bottom: 20px; overflow: hidden; }
-  .card-header { padding: 18px 20px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; }
+  .card-header, .collapsible-summary { padding: 18px 20px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
   .card-title { font-size: 14px; font-weight: 600; color: #0f172a; }
+  .collapsible-card { margin-bottom: 20px; }
+  .collapsible-card[open] .card-body { display: block; }
+  .collapsible-card .card-body { display: none; }
+  .collapsible-summary::-webkit-details-marker { display: none; }
+  .collapsible-summary::after { content: '▼'; font-size: 12px; color: #64748b; margin-left: 10px; transition: transform 0.2s ease; }
+  .collapsible-card[open] .collapsible-summary::after { transform: rotate(-180deg); }
 
   .chart-wrap { max-width: 260px; margin: 16px auto; }
 
@@ -44,7 +51,8 @@
   .member-top { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
   .member-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: white; flex-shrink: 0; }
   .member-info { flex: 1; }
-  .member-name { font-size: 14px; font-weight: 600; color: #0f172a; margin-bottom: 4px; }
+  .member-name { font-size: 14px; font-weight: 600; color: #0f172a; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+  .member-admin-badge { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; background: #fde68a; color: #b45309; border-radius: 50%; font-size: 12px; }
   .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; }
   .badge-green { background: #dcfce7; color: #16a34a; }
   .badge-red { background: #fef2f2; color: #dc2626; }
@@ -79,71 +87,75 @@
   }
 </style>
 
-{{ paid_amounts|json_script:"paid-data" }}
-{{ group.members|json_script:"members-data" }}
+{{ debt_amounts|json_script:"debt-data" }}
+{{ members_usernames|json_script:"members-data" }}
+{{ contribution_amounts|json_script:"contribution-data" }}
 
 <div class="page">
   <div class="nav">
     <div class="nav-links">
       <a href="{% url 'home' %}" class="nav-link">← Grupos</a>
+      {% if is_admin %}
       <a href="{% url 'update-group' group.id %}" class="nav-link" style="color:#6366f1;">✏️ Editar</a>
+      {% endif %}
     </div>
+    {% if request.user == group.owner %}
     <form method="POST" onsubmit="return confirm('¿Eliminar el grupo {{ group.name }}?')">
       {% csrf_token %}
       <input type="hidden" name="delete_group" value="1">
       <button type="submit" class="btn-delete-group">Eliminar grupo</button>
     </form>
+    {% endif %}
   </div>
 
   <div class="group-header">
     <div class="group-title-row">
       <span class="group-title" id="group-name">{{ group.name }}</span>
+      {% if is_admin %}<span class="admin-badge">👑 Administrador</span>{% endif %}
       <span class="currency-badge">{{ group.currency }}</span>
     </div>
     <form id="name-form" method="POST" action="{% url 'update-name' group.id %}" style="display:none;">
       {% csrf_token %}
       <input type="text" id="name-input-field" name="name" value="{{ group.name }}"/>
     </form>
-    <div class="group-meta">Creado el {{ group.created|date:"d/m/Y" }} · {{ group.members|length }} miembro{{ group.members|length|pluralize:"s" }}</div>
-  </div>
-
-  <div class="stats-grid">
-    <div class="stat-card">
-      <div class="stat-value">{{ group.total }}</div>
-      <div class="stat-label">Total gastado</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-value">{{ cost_per_member }}</div>
-      <div class="stat-label">Por persona</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-value">{{ group.members|length }}</div>
-      <div class="stat-label">Miembros</div>
+    <div class="group-meta">Creado el {{ group.created|date:"d/m/Y" }} · {{ members_count }} miembro{{ members_count|pluralize:"s" }}</div>
+    <div class="stats-grid" style="margin-top:12px;">
+      <div class="stat-card">
+        <div class="stat-label">Gastos grupales totales</div>
+        <div class="stat-value">{{ total_pooled|floatformat:2 }} {{ group.currency }}</div>
+      </div>
     </div>
   </div>
 
   <div class="card">
     <div class="card-header">
       <div class="card-title">👥 Miembros</div>
+      {% if is_admin %}
       <form method="POST" class="add-member-form">
         {% csrf_token %}
         <input type="text" name="new_member" class="input-sm" placeholder="Nombre..." style="width:130px;"/>
         <button type="submit" class="btn btn-primary btn-sm">+ Agregar</button>
       </form>
+      {% endif %}
     </div>
     {% for member_data in members_data %}
     <div class="member-item">
       <div class="member-top">
         <div class="member-avatar" data-idx="{{ forloop.counter0 }}">{{ member_data.name|first|upper }}</div>
         <div class="member-info">
-          <div class="member-name">{{ member_data.name }}</div>
-          {% if member_data.status.type == 'cobrar' %}
-            <span class="badge badge-green">↑ A cobrar {{ member_data.status.amount }} {{ group.currency }}</span>
-          {% elif member_data.status.type == 'debe' %}
+          <div class="member-name">
+            {{ member_data.name }}
+            {% if member_data.name == group.owner.username %}
+            <span class="member-admin-badge">👑</span>
+            {% endif %}
+          </div>
+          {% if member_data.status.type == 'debe' %}
             {% for debt in member_data.status.debts %}
             <div class="debt-row">
               <span class="badge badge-red">↓ Debe {{ debt.amount }} {{ group.currency }} a {{ debt.to }}</span>
+              {% if is_admin or member_data.name == request.user.username %}
               <button class="pay-btn" onclick="showSettlementForm('{{ member_data.name }}', '{{ debt.to }}', '{{ debt.amount }}', '{{ group.currency }}')">Pagar</button>
+              {% endif %}
             </div>
             {% endfor %}
           {% else %}
@@ -152,17 +164,21 @@
         </div>
       </div>
       <div class="member-actions">
+        {% if is_admin or member_data.name == request.user.username %}
         <form method="POST" style="display:flex;gap:6px;align-items:center;">
           {% csrf_token %}
           <input type="hidden" name="paid_by" value="{{ member_data.name }}"/>
           <input type="number" name="expense" class="input-sm" step="0.01" min="0.01" max="999999999.99" placeholder="Monto ({{ group.currency }})" style="width:160px;"/>
           <button type="submit" class="btn btn-primary btn-sm">+ Gasto</button>
         </form>
+        {% endif %}
+        {% if is_admin %}
         <form method="POST" action="{% url 'delete-member' group.id %}">
           {% csrf_token %}
           <input type="hidden" name="member_name" value="{{ member_data.name }}"/>
           <button type="submit" class="btn btn-danger-outline btn-sm" onclick="return confirm('¿Quitar a {{ member_data.name }} del grupo?')">Quitar</button>
         </form>
+        {% endif %}
       </div>
     </div>
     {% empty %}
@@ -171,40 +187,54 @@
   </div>
 
   {% if expenses %}
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">📋 Historial de gastos</div>
+  <details id="panel-movements" class="card collapsible-card" open data-panel="movements">
+    <summary class="card-header collapsible-summary">
+      <div class="card-title">📋 Movimientos</div>
+    </summary>
+    <div class="card-body">
+      {% for expense in expenses %}
+      <div class="history-item">
+        <span class="history-who">
+          {% if expense.transaction_type == 'settlement' and expense.paid_to %}
+            💸 {{ expense.paid_by }} → {{ expense.paid_to }}
+          {% else %}
+            💳 {{ expense.paid_by }}
+          {% endif %}
+        </span>
+        <span {% if expense.transaction_type == 'settlement' %}class="history-settlement"{% else %}class="history-amount"{% endif %}>
+          {% if expense.transaction_type == 'settlement' %}−{% endif %}
+          {{ expense.original_amount }} {{ expense.original_currency }}
+          {% if expense.original_currency != group.currency %}
+            <small style="color:#94a3b8;font-weight:400;">({{ expense.amount }} {{ group.currency }})</small>
+          {% endif %}
+        </span>
+      </div>
+      {% endfor %}
     </div>
-    {% for expense in expenses %}
-    <div class="history-item">
-      <span class="history-who">
-        {% if expense.transaction_type == 'settlement' and expense.paid_to %}
-          💸 {{ expense.paid_by }} → {{ expense.paid_to }}
-        {% else %}
-          💳 {{ expense.paid_by }}
-        {% endif %}
-      </span>
-      <span {% if expense.transaction_type == 'settlement' %}class="history-settlement"{% else %}class="history-amount"{% endif %}>
-        {% if expense.transaction_type == 'settlement' %}−{% endif %}
-        {{ expense.original_amount }} {{ expense.original_currency }}
-        {% if expense.original_currency != group.currency %}
-          <small style="color:#94a3b8;font-weight:400;">({{ expense.amount }} {{ group.currency }})</small>
-        {% endif %}
-      </span>
-    </div>
-    {% endfor %}
-  </div>
+  </details>
   {% endif %}
 
   {% if group.members and expenses %}
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">📊 Distribución de gastos</div>
+  <details id="panel-debts" class="card collapsible-card" open data-panel="debt-distribution">
+    <summary class="card-header collapsible-summary">
+      <div class="card-title">📊 Distribución de deudas acumuladas</div>
+    </summary>
+    <div class="card-body">
+      <div class="chart-wrap">
+        <canvas id="debtChart"></canvas>
+      </div>
     </div>
-    <div class="chart-wrap">
-      <canvas id="expenseChart"></canvas>
+  </details>
+  <details id="panel-contrib" class="card collapsible-card" open data-panel="contribution-distribution">
+    <summary class="card-header collapsible-summary">
+      <div class="card-title">📈 Aporte al grupo</div>
+    </summary>
+    <div class="card-body">
+      <div class="chart-wrap">
+        <canvas id="contributionChart"></canvas>
+      </div>
     </div>
-  </div>
+  </details>
   {% endif %}
 </div>
 
@@ -235,14 +265,14 @@ document.querySelectorAll('.member-avatar[data-idx]').forEach(el => {
 });
 
 {% if group.members and expenses %}
-const paidData = JSON.parse(document.getElementById('paid-data').textContent);
+const debtData = JSON.parse(document.getElementById('debt-data').textContent);
 const members = JSON.parse(document.getElementById('members-data').textContent);
-const vals = members.map(m => paidData[m] || 0);
+const vals = members.map(m => debtData[m] || 0);
 const total = vals.reduce((a, b) => a + b, 0);
 const currency = '{{ group.currency }}';
 
 if (total > 0) {
-  new Chart(document.getElementById('expenseChart'), {
+  const debtChart = new Chart(document.getElementById('debtChart'), {
     type: 'doughnut',
     data: {
       labels: members,
@@ -255,6 +285,7 @@ if (total > 0) {
     },
     options: {
       responsive: true,
+      maintainAspectRatio: false,
       cutout: '65%',
       plugins: {
         legend: { position: 'bottom', labels: { font: { family: 'Inter', size: 12 }, padding: 14 } },
@@ -266,8 +297,65 @@ if (total > 0) {
       }
     }
   });
+  // Force a small delayed resize/update to ensure legend and labels render correctly
+  setTimeout(() => { try { debtChart.update(); debtChart.resize(); } catch (e) {} }, 50);
 }
 {% endif %}
+
+{% if group.members and expenses %}
+const contributionData = JSON.parse(document.getElementById('contribution-data').textContent || '{}');
+const contribVals = members.map(m => contributionData[m] || 0);
+const contribTotal = contribVals.reduce((a, b) => a + b, 0);
+
+if (contribTotal > 0) {
+  const contributionChart = new Chart(document.getElementById('contributionChart'), {
+    type: 'doughnut',
+    data: {
+      labels: members,
+      datasets: [{
+        data: contribVals,
+        backgroundColor: COLORS.slice(0, members.length),
+        borderWidth: 3,
+        borderColor: '#fff',
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '65%',
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { family: 'Inter', size: 12 }, padding: 14 } },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.label}: ${currency} ${ctx.parsed.toFixed(2)} (${(ctx.parsed/contribTotal*100).toFixed(1)}%)`
+          }
+        }
+      }
+    }
+  });
+  setTimeout(() => { try { contributionChart.update(); contributionChart.resize(); } catch (e) {} }, 50);
+}
+{% endif %}
+
+const groupId = '{{ group.id }}';
+
+function restorePanelState() {
+  document.querySelectorAll('details[data-panel]').forEach(detail => {
+    const panel = detail.dataset.panel;
+    const saved = localStorage.getItem(`group_${groupId}_panel_${panel}`);
+    if (saved === 'closed') {
+      detail.removeAttribute('open');
+    } else if (saved === 'open') {
+      detail.setAttribute('open', '');
+    }
+    detail.addEventListener('toggle', () => {
+      const state = detail.open ? 'open' : 'closed';
+      localStorage.setItem(`group_${groupId}_panel_${panel}`, state);
+    });
+  });
+}
+
+restorePanelState();
 
 function showSettlementForm(paidBy, paidTo, maxAmount, currency) {
   document.getElementById('settlement-paid-by').value = paidBy;
@@ -283,15 +371,18 @@ window.addEventListener('click', e => {
   if (e.target === document.getElementById('settlement-modal')) closeSettlementForm();
 });
 
+const isAdmin = {{ is_admin|yesno:'true,false' }};
 const nameEl = document.getElementById('group-name');
 const nameForm = document.getElementById('name-form');
 const nameInput = document.getElementById('name-input-field');
-nameEl.addEventListener('click', () => {
-  nameEl.style.display = 'none';
-  nameForm.style.display = 'block';
-  nameInput.style.display = 'inline-block';
-  nameInput.focus(); nameInput.select();
-});
+if (isAdmin) {
+  nameEl.addEventListener('click', () => {
+    nameEl.style.display = 'none';
+    nameForm.style.display = 'block';
+    nameInput.style.display = 'inline-block';
+    nameInput.focus(); nameInput.select();
+  });
+}
 nameInput.addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); nameForm.submit(); }
   if (e.key === 'Escape') { nameEl.style.display = ''; nameForm.style.display = 'none'; nameInput.style.display = 'none'; }

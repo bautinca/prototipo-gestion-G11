@@ -119,4 +119,12 @@ STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
+# Default Auto Field
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Session configuration for multiple users in same browser
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SECURE = False  # Change to True in production with HTTPS
+SESSION_COOKIE_SAMESITE = 'Lax'
+
 LOGIN_URL = '/login/'
