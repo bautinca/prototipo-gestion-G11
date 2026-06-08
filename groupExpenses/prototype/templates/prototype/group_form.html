@@ -11,14 +11,18 @@
   .form-header p { font-size: 14px; color: #64748b; margin: 0; }
   .field { margin-bottom: 20px; }
   label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px; }
-  input[type=text], input[type=number], select {
+  input[type=text], input[type=number], select, textarea {
     width: 100%; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 10px 12px;
     font-size: 14px; font-family: inherit; color: #0f172a; outline: none;
     transition: border-color 0.2s, box-shadow 0.2s; background: white;
+    resize: vertical;
   }
-  input[type=text]:focus, input[type=number]:focus, select:focus {
+  input[type=text]:focus, input[type=number]:focus, select:focus, textarea:focus {
     border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1);
   }
+  input[type=number]::-webkit-outer-spin-button,
+  input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   .error-msg { color: #ef4444; font-size: 12px; margin-top: 4px; }
   .btn-submit { width: 100%; background: #6366f1; color: white; border: none; border-radius: 8px; padding: 12px; font-size: 15px; font-weight: 600; cursor: pointer; font-family: inherit; transition: background 0.2s; margin-top: 4px; }
   .btn-submit:hover { background: #4f46e5; }

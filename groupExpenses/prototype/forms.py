@@ -7,6 +7,12 @@ class GroupForm(forms.ModelForm):
         label='Nombre del grupo',
         error_messages={'required': 'Ingresá un nombre para el grupo'}
     )
+    description = forms.CharField(
+        max_length=300,
+        required=False,
+        label='Descripción (opcional)',
+        widget=forms.Textarea(attrs={'rows': 2, 'placeholder': 'Ej: gastos del viaje a Bariloche'})
+    )
     currency = forms.ChoiceField(
         label='Divisa del grupo',
         choices=[('ARS', 'Pesos (ARS)'), ('USD', 'Dólares (USD)'), ('EUR', 'Euros (EUR)')]
@@ -14,4 +20,4 @@ class GroupForm(forms.ModelForm):
 
     class Meta:
         model = Group
-        fields = ['name', 'currency']
+        fields = ['name', 'description', 'currency']

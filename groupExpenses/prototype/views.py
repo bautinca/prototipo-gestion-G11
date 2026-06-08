@@ -13,6 +13,16 @@ from .utils import calculate_debts, get_conversion_rate
 MAX_AMOUNT = Decimal('999999999.99')
 
 
+def _member_blocked_reason(group, username, is_owner_of_group):
+    """Devuelve un string con el motivo por el que no se puede eliminar al miembro, o None si se puede."""
+    if is_owner_of_group:
+        return 'No se puede eliminar al administrador del grupo.'
+    for exp in group.expense_set.all():
+        if exp.paid_by == username or exp.paid_to == username or (exp.participants and username in exp.participants):
+            return f'{username} tiene gastos registrados en el grupo. Para eliminarlo, primero borrá esos movimientos.'
+    return None
+
+
 @login_required
 def home(request):
     groups = Group.objects.filter(Q(owner=request.user) | Q(members=request.user)).distinct()
@@ -114,6 +124,7 @@ def group(request, pk):
         elif 'expense' in request.POST:
             paid_by = request.POST.get('paid_by', '').strip()
             amount_str = request.POST.get('expense', '').strip()
+            description = request.POST.get('description', '').strip()[:200]
 
             if paid_by and amount_str and group.members.exists():
                 if not group.members.filter(username__iexact=paid_by).exists():
@@ -142,6 +153,7 @@ def group(request, pk):
                     original_amount=original_amount,
                     original_currency=group.currency,
                     participants=[member.username for member in group.members.all()],
+                    description=description,
                 )
             return redirect('group', pk=pk)
 
@@ -155,6 +167,7 @@ def group(request, pk):
 
     debts, balances = calculate_debts(group)
 
+    owner_username = group.owner.username if group.owner else None
     members_data = []
     for member in group.members.all():
         member_debts = [d for d in debts if d['from'] == member.username]
@@ -162,7 +175,13 @@ def group(request, pk):
             status = {'type': 'debe', 'debts': member_debts}
         else:
             status = {'type': 'al_dia'}
-        members_data.append({'name': member.username, 'status': status})
+        blocked_reason = _member_blocked_reason(group, member.username, member.username == owner_username)
+        members_data.append({
+            'name': member.username,
+            'status': status,
+            'is_removable': blocked_reason is None,
+            'blocked_reason': blocked_reason or '',
+        })
 
     cost_per_member = (group.total / group.members.count()) if group.members.exists() else Decimal('0')
     expenses = group.expense_set.all().order_by('-id')
@@ -246,12 +265,13 @@ def deleteMember(request, pk):
                 member_user = None
 
             if member_user and group.members.filter(id=member_user.id).exists():
-                debts, balances = calculate_debts(group)
-                has_pending = any(d['from'] == member_user.username or d['to'] == member_user.username for d in debts)
-                if has_pending:
-                    messages.error(request, f'{member_user.username} tiene deudas pendientes. Debe estar al día antes de ser eliminado.')
+                is_group_owner = group.owner_id == member_user.id
+                blocked_reason = _member_blocked_reason(group, member_user.username, is_group_owner)
+                if blocked_reason:
+                    messages.error(request, f'No se puede eliminar a {member_user.username}: {blocked_reason}')
                 else:
                     group.members.remove(member_user)
+                    messages.success(request, f'{member_user.username} fue eliminado del grupo.')
     return redirect('group', pk=pk)
 
 

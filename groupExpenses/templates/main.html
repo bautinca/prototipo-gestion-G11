@@ -11,7 +11,9 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; }
-    body { margin: 0; font-family: 'Inter', system-ui, sans-serif; background: #f1f5f9; color: #0f172a; }
+    html, body { height: 100%; }
+    body { margin: 0; font-family: 'Inter', system-ui, sans-serif; background: #f1f5f9; color: #0f172a; display: flex; flex-direction: column; min-height: 100vh; }
+    .app-content { flex: 1 0 auto; }
     a { color: #6366f1; text-decoration: none; }
     a:hover { text-decoration: underline; }
     .message { padding: 12px 16px; border-radius: 8px; margin-bottom: 8px; font-size: 14px; font-weight: 500; }
@@ -19,6 +21,7 @@
     .message.success { background: #dcfce7; border: 1px solid #22c55e; color: #166534; }
     .message.error { background: #fee2e2; border: 1px solid #ef4444; color: #b91c1c; }
     .message.warning { background: #ffedd5; border: 1px solid #f97316; color: #c2410c; }
+    .app-footer { text-align: center; padding: 24px 16px 16px; font-size: 12px; color: #94a3b8; letter-spacing: 0.02em; }
   </style>
 </head>
 <body>
@@ -40,7 +43,10 @@
     {% endfor %}
   </div>
   {% endif %}
-  {% block content %}{% endblock %}
+  <main class="app-content">
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="app-footer">versión: entrega 8/6</footer>
 </body>
 <div id="info-modal" style="display:none;position:fixed;inset:0;align-items:center;justify-content:center;z-index:1200;">
   <div style="position:absolute;inset:0;background:rgba(2,6,23,0.6);"></div>

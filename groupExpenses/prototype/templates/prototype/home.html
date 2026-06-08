@@ -19,6 +19,17 @@
   .empty { text-align: center; padding: 56px 20px; color: #94a3b8; }
   .empty-icon { font-size: 40px; margin-bottom: 12px; }
   .empty p { font-size: 15px; margin: 0 0 20px; }
+
+  .modal { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.5); z-index: 1000; justify-content: center; align-items: center; }
+  .modal-box { background: white; border-radius: 16px; padding: 28px; max-width: 380px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
+  .modal-title { font-size: 17px; font-weight: 700; margin-bottom: 8px; color: #0f172a; }
+  .modal-info { font-size: 14px; color: #64748b; margin-bottom: 20px; }
+  .modal-actions { display: flex; gap: 8px; margin-top: 20px; }
+  .btn { padding: 10px 14px; border-radius: 8px; border: none; cursor: pointer; font-size: 14px; font-weight: 500; font-family: inherit; }
+  .btn-cancel { background: #f1f5f9; color: #64748b; flex: 1; }
+  .btn-cancel:hover { background: #e2e8f0; }
+  .btn-danger { background: #ef4444; color: white; flex: 1; }
+  .btn-danger:hover { background: #dc2626; }
 </style>
 
 <div class="page">
@@ -64,10 +75,11 @@
         {% endif %}
       </a>
       {% if request.user == group.owner %}
-      <form method="POST" action="{% url 'group' group.id %}" onsubmit="return confirm('¿Eliminar {{ group.name }}?')">
+      <form method="POST" action="{% url 'group' group.id %}" id="delete-group-form-{{ group.id }}">
         {% csrf_token %}
         <input type="hidden" name="delete_group" value="1"/>
-        <button type="submit" class="btn-del">Eliminar</button>
+        <button type="button" class="btn-del"
+                onclick="openHomeDeleteModal('{{ group.id }}', '{{ group.name|escapejs }}')">Eliminar</button>
       </form>
       {% endif %}
     </div>
@@ -80,4 +92,33 @@
     {% endfor %}
   </div>
 </div>
+
+<div class="modal" id="home-delete-modal">
+  <div class="modal-box">
+    <div class="modal-title">¿Eliminar el grupo?</div>
+    <div class="modal-info" id="home-delete-info"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-danger" id="home-delete-accept">Eliminar grupo</button>
+      <button type="button" class="btn btn-cancel" onclick="closeHomeDeleteModal()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const homeDeleteModal = document.getElementById('home-delete-modal');
+  const homeDeleteInfo = document.getElementById('home-delete-info');
+  const homeDeleteAccept = document.getElementById('home-delete-accept');
+
+  function openHomeDeleteModal(groupId, groupName) {
+    homeDeleteInfo.textContent = `Se eliminará "${groupName}" junto con todos sus gastos, miembros y movimientos. Esta acción no se puede deshacer.`;
+    homeDeleteAccept.onclick = () => document.getElementById(`delete-group-form-${groupId}`).submit();
+    homeDeleteModal.style.display = 'flex';
+  }
+  function closeHomeDeleteModal() {
+    homeDeleteModal.style.display = 'none';
+  }
+  window.addEventListener('click', e => {
+    if (e.target === homeDeleteModal) closeHomeDeleteModal();
+  });
+</script>
 {% endblock content %}

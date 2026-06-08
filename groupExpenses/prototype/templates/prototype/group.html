@@ -80,6 +80,21 @@
   .modal-actions { display: flex; gap: 8px; margin-top: 20px; }
   .btn-cancel { background: #f1f5f9; color: #64748b; flex: 1; }
   .btn-cancel:hover { background: #e2e8f0; }
+  .btn-danger { background: #ef4444; color: white; flex: 1; }
+  .btn-danger:hover { background: #dc2626; }
+
+  .btn:disabled, .btn-danger-outline:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btn-danger-outline:disabled:hover { background: none; }
+
+  /* Quitar las flechitas (spinners) de los inputs numéricos */
+  input[type=number]::-webkit-outer-spin-button,
+  input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+
+  .group-description { font-size: 14px; color: #475569; margin-top: 6px; line-height: 1.5; }
+  .expense-form-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .history-desc { font-size: 12px; color: #64748b; font-weight: 400; margin-top: 2px; }
+  .history-left { display: flex; flex-direction: column; min-width: 0; }
 
   @media (max-width: 500px) {
     .stats-grid { grid-template-columns: 1fr 1fr; }
@@ -100,10 +115,10 @@
       {% endif %}
     </div>
     {% if request.user == group.owner %}
-    <form method="POST" onsubmit="return confirm('¿Eliminar el grupo {{ group.name }}?')">
+    <form method="POST" id="delete-group-form">
       {% csrf_token %}
       <input type="hidden" name="delete_group" value="1">
-      <button type="submit" class="btn-delete-group">Eliminar grupo</button>
+      <button type="button" class="btn-delete-group" onclick="openConfirmModal('delete-group')">Eliminar grupo</button>
     </form>
     {% endif %}
   </div>
@@ -119,6 +134,9 @@
       <input type="text" id="name-input-field" name="name" value="{{ group.name }}"/>
     </form>
     <div class="group-meta">Creado el {{ group.created|date:"d/m/Y" }} · {{ members_count }} miembro{{ members_count|pluralize:"s" }}</div>
+    {% if group.description %}
+    <div class="group-description">{{ group.description }}</div>
+    {% endif %}
     <div class="stats-grid" style="margin-top:12px;">
       <div class="stat-card">
         <div class="stat-label">Gastos grupales totales</div>
@@ -165,18 +183,25 @@
       </div>
       <div class="member-actions">
         {% if is_admin or member_data.name == request.user.username %}
-        <form method="POST" style="display:flex;gap:6px;align-items:center;">
+        <form method="POST" class="expense-form-row">
           {% csrf_token %}
           <input type="hidden" name="paid_by" value="{{ member_data.name }}"/>
-          <input type="number" name="expense" class="input-sm" step="0.01" min="0.01" max="999999999.99" placeholder="Monto ({{ group.currency }})" style="width:160px;"/>
+          <input type="number" name="expense" class="input-sm" step="0.01" min="0.01" max="999999999.99" placeholder="Monto ({{ group.currency }})" style="width:140px;"/>
+          <input type="text" name="description" class="input-sm" maxlength="200" placeholder="Descripción (opcional)" style="width:180px;"/>
           <button type="submit" class="btn btn-primary btn-sm">+ Gasto</button>
         </form>
         {% endif %}
         {% if is_admin %}
-        <form method="POST" action="{% url 'delete-member' group.id %}">
+        <form method="POST" action="{% url 'delete-member' group.id %}" id="delete-member-form-{{ forloop.counter0 }}">
           {% csrf_token %}
           <input type="hidden" name="member_name" value="{{ member_data.name }}"/>
-          <button type="submit" class="btn btn-danger-outline btn-sm" onclick="return confirm('¿Quitar a {{ member_data.name }} del grupo?')">Quitar</button>
+          {% if member_data.is_removable %}
+          <button type="button" class="btn btn-danger-outline btn-sm"
+                  onclick="openConfirmModal('delete-member', { name: '{{ member_data.name|escapejs }}', formId: 'delete-member-form-{{ forloop.counter0 }}' })">Quitar</button>
+          {% else %}
+          <button type="button" class="btn btn-danger-outline btn-sm" disabled
+                  title="{{ member_data.blocked_reason }}">Quitar</button>
+          {% endif %}
         </form>
         {% endif %}
       </div>
@@ -194,13 +219,18 @@
     <div class="card-body">
       {% for expense in expenses %}
       <div class="history-item">
-        <span class="history-who">
-          {% if expense.transaction_type == 'settlement' and expense.paid_to %}
-            💸 {{ expense.paid_by }} → {{ expense.paid_to }}
-          {% else %}
-            💳 {{ expense.paid_by }}
+        <div class="history-left">
+          <span class="history-who">
+            {% if expense.transaction_type == 'settlement' and expense.paid_to %}
+              💸 {{ expense.paid_by }} → {{ expense.paid_to }}
+            {% else %}
+              💳 {{ expense.paid_by }}
+            {% endif %}
+          </span>
+          {% if expense.description %}
+          <span class="history-desc">{{ expense.description }}</span>
           {% endif %}
-        </span>
+        </div>
         <span {% if expense.transaction_type == 'settlement' %}class="history-settlement"{% else %}class="history-amount"{% endif %}>
           {% if expense.transaction_type == 'settlement' %}−{% endif %}
           {{ expense.original_amount }} {{ expense.original_currency }}
@@ -254,6 +284,17 @@
         <button type="button" class="btn btn-cancel" onclick="closeSettlementForm()">Cancelar</button>
       </div>
     </form>
+  </div>
+</div>
+
+<div class="modal" id="confirm-modal">
+  <div class="modal-box">
+    <div class="modal-title" id="confirm-title">¿Confirmar acción?</div>
+    <div class="modal-info" id="confirm-info"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-danger" id="confirm-accept">Eliminar</button>
+      <button type="button" class="btn btn-cancel" onclick="closeConfirmModal()">Cancelar</button>
+    </div>
   </div>
 </div>
 
@@ -369,7 +410,31 @@ function closeSettlementForm() {
 }
 window.addEventListener('click', e => {
   if (e.target === document.getElementById('settlement-modal')) closeSettlementForm();
+  if (e.target === document.getElementById('confirm-modal')) closeConfirmModal();
 });
+
+const confirmModal = document.getElementById('confirm-modal');
+const confirmTitle = document.getElementById('confirm-title');
+const confirmInfo = document.getElementById('confirm-info');
+const confirmAccept = document.getElementById('confirm-accept');
+
+function openConfirmModal(action, data) {
+  if (action === 'delete-group') {
+    confirmTitle.textContent = '¿Eliminar el grupo?';
+    confirmInfo.textContent = 'Se eliminará "{{ group.name|escapejs }}" junto con todos sus gastos, miembros y movimientos. Esta acción no se puede deshacer.';
+    confirmAccept.textContent = 'Eliminar grupo';
+    confirmAccept.onclick = () => document.getElementById('delete-group-form').submit();
+  } else if (action === 'delete-member') {
+    confirmTitle.textContent = '¿Quitar miembro?';
+    confirmInfo.textContent = `Se quitará a ${data.name} del grupo.`;
+    confirmAccept.textContent = 'Quitar';
+    confirmAccept.onclick = () => document.getElementById(data.formId).submit();
+  }
+  confirmModal.style.display = 'flex';
+}
+function closeConfirmModal() {
+  confirmModal.style.display = 'none';
+}
 
 const isAdmin = {{ is_admin|yesno:'true,false' }};
 const nameEl = document.getElementById('group-name');

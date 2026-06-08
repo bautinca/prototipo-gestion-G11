@@ -11,6 +11,7 @@ CURRENCY_CHOICES = [
 class Group(models.Model):
     owner = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
     name = models.CharField(max_length=200)
+    description = models.CharField(max_length=300, blank=True, default='')
     currency = models.CharField(max_length=3, choices=CURRENCY_CHOICES, default='ARS')
     members = models.ManyToManyField(User, related_name='member_groups', blank=True)
     updated = models.DateField(auto_now=True)
@@ -40,6 +41,7 @@ class Expense(models.Model):
     original_amount = models.DecimalField(max_digits=12, decimal_places=2)
     original_currency = models.CharField(max_length=3, choices=CURRENCY_CHOICES)
     participants = models.JSONField(default=list)
+    description = models.CharField(max_length=200, blank=True, default='')
 
     def __str__(self):
         if self.transaction_type == 'settlement' and self.paid_to:
